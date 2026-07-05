@@ -1,0 +1,541 @@
+openapi: 3.0.3
+info:
+  title: MyCalorie API
+  version: "1.0.0"
+  description: Backend API for the MyCalorie Flutter app.
+servers:
+  - url: http://localhost:3000
+    description: Local dev server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Sex:
+      type: string
+      enum: [MALE, FEMALE]
+    ActivityLevel:
+      type: string
+      enum: [SEDENTARY, LIGHT, MODERATE, ACTIVE, VERY_ACTIVE]
+    GoalType:
+      type: string
+      enum: [LOSE, MAINTAIN, GAIN]
+    MealType:
+      type: string
+      enum: [BREAKFAST, LUNCH, DINNER, SNACK]
+    FoodSource:
+      type: string
+      enum: [OPEN_FOOD_FACTS, MYFCD, CUSTOM]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+    AuthCredentials:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    AuthToken:
+      type: object
+      properties:
+        token:
+          type: string
+
+    SignupResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date-time
+          nullable: true
+        sex:
+          $ref: "#/components/schemas/Sex"
+        heightCm:
+          type: number
+          nullable: true
+        activityLevel:
+          $ref: "#/components/schemas/ActivityLevel"
+        goalType:
+          $ref: "#/components/schemas/GoalType"
+        latestWeightKg:
+          type: number
+          nullable: true
+        profileComplete:
+          type: boolean
+        tdee:
+          type: object
+          nullable: true
+          properties:
+            maintenanceTdee:
+              type: number
+            targetCalories:
+              type: number
+
+    ProfileUpdate:
+      type: object
+      properties:
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1995-06-15"
+        sex:
+          $ref: "#/components/schemas/Sex"
+        heightCm:
+          type: number
+          example: 175
+        activityLevel:
+          $ref: "#/components/schemas/ActivityLevel"
+        goalType:
+          $ref: "#/components/schemas/GoalType"
+        weightKg:
+          type: number
+          example: 70
+
+    FoodItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        caloriesPer100g:
+          type: number
+        proteinPer100g:
+          type: number
+        carbsPer100g:
+          type: number
+        fatPer100g:
+          type: number
+        barcode:
+          type: string
+          nullable: true
+        source:
+          $ref: "#/components/schemas/FoodSource"
+        createdByUserId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    FoodItemCreate:
+      type: object
+      required: [name, caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g]
+      properties:
+        name:
+          type: string
+          example: Nasi Lemak
+        caloriesPer100g:
+          type: number
+          example: 200
+        proteinPer100g:
+          type: number
+          example: 5
+        carbsPer100g:
+          type: number
+          example: 25
+        fatPer100g:
+          type: number
+          example: 9
+        barcode:
+          type: string
+
+    LogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        foodItemId:
+          type: string
+        servingGrams:
+          type: number
+        mealType:
+          $ref: "#/components/schemas/MealType"
+        loggedAt:
+          type: string
+          format: date-time
+        calories:
+          type: number
+        protein:
+          type: number
+        carbs:
+          type: number
+        fat:
+          type: number
+        foodItem:
+          type: object
+          properties:
+            name:
+              type: string
+
+    LogEntryCreate:
+      type: object
+      required: [foodItemId, servingGrams, mealType]
+      properties:
+        foodItemId:
+          type: string
+        servingGrams:
+          type: number
+          example: 250
+        mealType:
+          $ref: "#/components/schemas/MealType"
+        loggedAt:
+          type: string
+          format: date-time
+
+    DailyLog:
+      type: object
+      properties:
+        date:
+          type: string
+          example: "2026-07-05"
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LogEntry"
+        totals:
+          type: object
+          properties:
+            calories:
+              type: number
+            protein:
+              type: number
+            carbs:
+              type: number
+            fat:
+              type: number
+
+    WeightLog:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        weightKg:
+          type: number
+        recordedAt:
+          type: string
+          format: date-time
+
+    WeightLogCreate:
+      type: object
+      required: [weightKg]
+      properties:
+        weightKg:
+          type: number
+          example: 70
+        recordedAt:
+          type: string
+          format: date-time
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  userCount:
+                    type: integer
+
+  /auth/signup:
+    post:
+      summary: Create an account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignupResponse"
+        "400":
+          description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/login:
+    post:
+      summary: Log in and receive a JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+      responses:
+        "200":
+          description: Login succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthToken"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /me:
+    get:
+      summary: Get the logged-in user's basic identity
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  createdAt:
+                    type: string
+                    format: date-time
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /profile:
+    get:
+      summary: Get the logged-in user's profile (with computed TDEE)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+    patch:
+      summary: Update profile fields and/or log current weight
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /foods:
+    get:
+      summary: Search food items by name
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching food items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FoodItem"
+    post:
+      summary: Create a custom food item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FoodItemCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoodItem"
+        "400":
+          description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /foods/barcode/{barcode}:
+    get:
+      summary: Look up a food item by barcode
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoodItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /logs:
+    get:
+      summary: Get log entries and totals for a given day (defaults to today)
+      parameters:
+        - name: date
+          in: query
+          description: YYYY-MM-DD, defaults to today (UTC)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyLog"
+    post:
+      summary: Log a food entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogEntryCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogEntry"
+        "400":
+          description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Food item not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /logs/{id}:
+    delete:
+      summary: Delete a log entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /weight-logs:
+    get:
+      summary: Get weight history
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WeightLog"
+    post:
+      summary: Log a weight entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WeightLogCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeightLog"
+        "400":
+          description: Missing weightKg
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"

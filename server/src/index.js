@@ -1,8 +1,16 @@
 require("dotenv").config();
+const path = require("path");
+const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
+const swaggerUi = require("swagger-ui-express");
+const YAML = require("yaml");
 const prisma = require("./db");
 const authRoutes = require("./routes/auth");
+const profileRoutes = require("./routes/profile");
+const foodRoutes = require("./routes/foods");
+const logRoutes = require("./routes/logs");
+const weightLogRoutes = require("./routes/weightLogs");
 const { requireAuth } = require("./middleware/auth");
 
 const app = express();
@@ -15,6 +23,9 @@ app.get("/health", async (req, res) => {
   res.json({ status: "ok", userCount });
 });
 
+const openapiDocument = YAML.parse(fs.readFileSync(path.join(__dirname, "../openapi.yaml"), "utf8"));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument));
+
 app.use("/auth", authRoutes);
 
 app.get("/me", requireAuth, async (req, res) => {
@@ -24,6 +35,11 @@ app.get("/me", requireAuth, async (req, res) => {
   });
   res.json(user);
 });
+
+app.use("/profile", requireAuth, profileRoutes);
+app.use("/foods", requireAuth, foodRoutes);
+app.use("/logs", requireAuth, logRoutes);
+app.use("/weight-logs", requireAuth, weightLogRoutes);
 
 const port = process.env.PORT || 3000;
 app.listen(port, "0.0.0.0", () => {

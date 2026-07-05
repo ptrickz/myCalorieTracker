@@ -12,9 +12,98 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum GoalType {
+  LOSE
+  MAINTAIN
+  GAIN
+}
+
+enum FoodSource {
+  OPEN_FOOD_FACTS
+  MYFCD
+  CUSTOM
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  dateOfBirth   DateTime?
+  sex           Sex?
+  heightCm      Float?
+  activityLevel ActivityLevel?
+  goalType      GoalType?
+
+  weightLogs  WeightLog[]
+  logEntries  LogEntry[]
+  foodItems   FoodItem[]
+}
+
+model WeightLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  weightKg   Float
+  recordedAt DateTime @default(now())
+
+  @@index([userId, recordedAt])
+}
+
+model FoodItem {
+  id               String     @id @default(uuid())
+  name             String
+  caloriesPer100g  Float
+  proteinPer100g   Float
+  carbsPer100g     Float
+  fatPer100g       Float
+  barcode          String?    @unique
+  source           FoodSource
+  createdByUserId  String?
+  createdBy        User?      @relation(fields: [createdByUserId], references: [id])
+  createdAt        DateTime   @default(now())
+
+  logEntries LogEntry[]
+
+  @@index([name])
+}
+
+model LogEntry {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  foodItemId    String
+  foodItem      FoodItem @relation(fields: [foodItemId], references: [id])
+  servingGrams  Float
+  mealType      MealType
+  loggedAt      DateTime @default(now())
+
+  // Snapshot of the food's macros at the time of logging, scaled to servingGrams,
+  // so later edits to FoodItem don't retroactively change historical logs.
+  calories Float
+  protein  Float
+  carbs    Float
+  fat      Float
+
+  @@index([userId, loggedAt])
 }

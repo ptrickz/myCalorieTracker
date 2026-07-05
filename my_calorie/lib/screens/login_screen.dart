@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
-import "home_screen.dart";
+import "root_screen.dart";
 import "signup_screen.dart";
 
 class LoginScreen extends StatefulWidget {
@@ -30,7 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await _authStorage.saveToken(token);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const RootScreen()),
       );
     } catch (e) {
       setState(() => _errorMessage = e.toString());
