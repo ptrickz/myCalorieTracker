@@ -2,6 +2,10 @@ import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../widgets/weight_trend_card.dart";
+import "../widgets/app_toast.dart";
+import "../widgets/calorie_hero_card.dart";
+import "../widgets/macro_stat_card.dart";
+import "../theme.dart";
 import "welcome_screen.dart";
 import "add_food_screen.dart";
 
@@ -110,7 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _loadDashboard();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      AppToast.show(context, e.toString());
     }
   }
 
@@ -157,14 +161,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _loadDashboard();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      AppToast.show(context, e.toString());
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final consumed = (_totals["calories"] as num).toDouble();
-    final remaining = _targetCalories - consumed;
 
     return Scaffold(
       appBar: AppBar(
@@ -180,29 +183,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(24),
                     children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              Text("Remaining today", style: Theme.of(context).textTheme.titleMedium),
-                              Text(
-                                "${remaining.round()} kcal",
-                                style: Theme.of(context).textTheme.headlineMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              Text("${consumed.round()} eaten of ${_targetCalories.round()} kcal goal"),
-                            ],
-                          ),
-                        ),
-                      ),
+                      CalorieHeroCard(consumed: consumed, target: _targetCalories),
                       const SizedBox(height: 16),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _MacroStat(label: "Protein", grams: _totals["protein"] as num),
-                          _MacroStat(label: "Carbs", grams: _totals["carbs"] as num),
-                          _MacroStat(label: "Fat", grams: _totals["fat"] as num),
+                          Expanded(
+                            child: MacroStatCard(
+                              label: "Protein",
+                              grams: _totals["protein"] as num,
+                              dotColor: AppColors.proteinDot,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: MacroStatCard(
+                              label: "Carbs",
+                              grams: _totals["carbs"] as num,
+                              dotColor: AppColors.carbsDot,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: MacroStatCard(
+                              label: "Fat",
+                              grams: _totals["fat"] as num,
+                              dotColor: AppColors.fatDot,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -237,23 +244,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onPressed: _openAddFood,
         child: const Icon(Icons.add),
       ),
-    );
-  }
-}
-
-class _MacroStat extends StatelessWidget {
-  final String label;
-  final num grams;
-
-  const _MacroStat({required this.label, required this.grams});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text("${grams.round()}g", style: Theme.of(context).textTheme.titleMedium),
-        Text(label),
-      ],
     );
   }
 }

@@ -9,6 +9,12 @@ class AppColors {
   static const textSecondary = Color(0xFF9A9A9A);
   static const border = Color(0xFF2A2A2A);
   static const error = Color(0xFFFF6B6B);
+
+  // Macro stat indicator dots — kept distinct from each other for at-a-glance
+  // scanning, while the app chrome stays lime/black.
+  static const proteinDot = accent;
+  static const carbsDot = Color(0xFF4FC3F7);
+  static const fatDot = Color(0xFFFFB74D);
 }
 
 ThemeData buildAppTheme() {
@@ -20,10 +26,15 @@ ThemeData buildAppTheme() {
       brightness: Brightness.dark,
       primary: AppColors.accent,
       onPrimary: Colors.black,
+      secondary: AppColors.accent,
+      onSecondary: Colors.black,
+      tertiary: AppColors.accent,
+      onTertiary: Colors.black,
       surface: AppColors.surface,
       onSurface: AppColors.textPrimary,
       error: AppColors.error,
     ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.accent),
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.background,
       foregroundColor: AppColors.textPrimary,

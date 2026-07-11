@@ -4,6 +4,7 @@ import "../theme.dart";
 import "../widgets/app_logo.dart";
 import "../widgets/primary_button.dart";
 import "../widgets/password_strength_meter.dart";
+import "../widgets/app_toast.dart";
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -37,9 +38,7 @@ class _SignupScreenState extends State<SignupScreen> {
       await _apiService.signup(_emailController.text, _passwordController.text);
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Account created — you can sign in now")),
-      );
+      AppToast.show(context, "Account created — you can sign in now");
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {

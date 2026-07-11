@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "../theme.dart";
 import "../widgets/app_logo.dart";
+import "../widgets/app_toast.dart";
 import "login_screen.dart";
 import "signup_screen.dart";
 
@@ -8,9 +9,7 @@ class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
   void _showComingSoon(BuildContext context, String provider) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("$provider sign-in is coming soon — use email for now.")),
-    );
+    AppToast.show(context, "$provider sign-in is coming soon — use email for now.");
   }
 
   @override
