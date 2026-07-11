@@ -4,6 +4,8 @@ info:
   version: "1.0.0"
   description: Backend API for the MyCalorie Flutter app.
 servers:
+  - url: https://mct.up.railway.app
+    description: Production (Railway)
   - url: http://localhost:3000
     description: Local dev server
 
