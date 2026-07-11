@@ -2,7 +2,7 @@ import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../widgets/weight_trend_card.dart";
-import "login_screen.dart";
+import "welcome_screen.dart";
 import "add_food_screen.dart";
 
 class DashboardScreen extends StatefulWidget {
@@ -40,7 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final token = await _authStorage.readToken();
       if (token == null) {
-        _goToLogin();
+        _goToWelcome();
         return;
       }
 
@@ -65,12 +65,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _handleLogout() async {
     await _authStorage.clearToken();
-    _goToLogin();
+    _goToWelcome();
   }
 
-  void _goToLogin() {
+  void _goToWelcome() {
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const WelcomeScreen()));
   }
 
   Future<void> _openAddFood() async {

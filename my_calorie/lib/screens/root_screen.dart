@@ -1,11 +1,11 @@
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
-import "login_screen.dart";
+import "welcome_screen.dart";
 import "profile_setup_screen.dart";
 import "dashboard_screen.dart";
 
-// Central place that decides where to send the user: Login (no/invalid token),
+// Central place that decides where to send the user: Welcome (no/invalid token),
 // ProfileSetup (logged in but hasn't entered TDEE inputs yet), or Dashboard.
 class RootScreen extends StatefulWidget {
   const RootScreen({super.key});
@@ -27,7 +27,7 @@ class _RootScreenState extends State<RootScreen> {
   Future<void> _decideStartScreen() async {
     final token = await _authStorage.readToken();
     if (token == null) {
-      _goTo(const LoginScreen());
+      _goTo(const WelcomeScreen());
       return;
     }
 
@@ -37,7 +37,7 @@ class _RootScreenState extends State<RootScreen> {
       _goTo(profileComplete ? const DashboardScreen() : const ProfileSetupScreen());
     } catch (_) {
       await _authStorage.clearToken();
-      _goTo(const LoginScreen());
+      _goTo(const WelcomeScreen());
     }
   }
 
