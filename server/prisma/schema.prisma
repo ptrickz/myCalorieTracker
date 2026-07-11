@@ -54,6 +54,8 @@ model User {
   heightCm      Float?
   activityLevel ActivityLevel?
   goalType      GoalType?
+  goalWeightKg      Float?
+  milestoneWeightKg Float?
 
   weightLogs  WeightLog[]
   logEntries  LogEntry[]

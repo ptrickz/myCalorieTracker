@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
+import "../widgets/weight_trend_card.dart";
 import "login_screen.dart";
 import "add_food_screen.dart";
 
@@ -20,6 +21,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _targetCalories = 0;
   Map<String, dynamic> _totals = const {"calories": 0, "protein": 0, "carbs": 0, "fat": 0};
   List<Map<String, dynamic>> _entries = const [];
+  List<Map<String, dynamic>> _weightLogs = const [];
+  double? _goalWeightKg;
+  double? _milestoneWeightKg;
 
   @override
   void initState() {
@@ -42,11 +46,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       final profile = await _apiService.getProfile(token);
       final logs = await _apiService.getTodaysLogs(token);
+      final weightLogs = await _apiService.getWeightLogs(token);
 
       setState(() {
         _targetCalories = (profile["tdee"]?["targetCalories"] as num?)?.toDouble() ?? 0;
         _totals = logs["totals"] as Map<String, dynamic>;
         _entries = (logs["entries"] as List).cast<Map<String, dynamic>>();
+        _weightLogs = weightLogs;
+        _goalWeightKg = (profile["goalWeightKg"] as num?)?.toDouble();
+        _milestoneWeightKg = (profile["milestoneWeightKg"] as num?)?.toDouble();
       });
     } catch (e) {
       setState(() => _errorMessage = e.toString());
@@ -70,6 +78,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
       MaterialPageRoute(builder: (_) => const AddFoodScreen()),
     );
     if (logged == true) _loadDashboard();
+  }
+
+  Future<void> _openLogWeightDialog() async {
+    final controller = TextEditingController();
+    final weightKg = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Log today's weight"),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: "Weight (kg)"),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(double.tryParse(controller.text)),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+
+    if (weightKg == null) return;
+
+    try {
+      final token = await _authStorage.readToken();
+      await _apiService.addWeightLog(token!, weightKg);
+      _loadDashboard();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  Future<void> _openEditGoalsDialog() async {
+    final goalController = TextEditingController(text: _goalWeightKg?.toString() ?? "");
+    final milestoneController = TextEditingController(text: _milestoneWeightKg?.toString() ?? "");
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Edit weight goals"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: goalController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "Goal weight (kg)"),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: milestoneController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "Milestone weight (kg)"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Save")),
+        ],
+      ),
+    );
+
+    if (saved != true) return;
+
+    try {
+      final token = await _authStorage.readToken();
+      await _apiService.updateGoals(
+        token!,
+        goalWeightKg: double.tryParse(goalController.text),
+        milestoneWeightKg: double.tryParse(milestoneController.text),
+      );
+      _loadDashboard();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
   }
 
   @override
@@ -115,6 +204,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _MacroStat(label: "Carbs", grams: _totals["carbs"] as num),
                           _MacroStat(label: "Fat", grams: _totals["fat"] as num),
                         ],
+                      ),
+                      const SizedBox(height: 24),
+                      WeightTrendCard(
+                        weightLogs: _weightLogs,
+                        goalWeightKg: _goalWeightKg,
+                        milestoneWeightKg: _milestoneWeightKg,
+                        onEditGoals: _openEditGoalsDialog,
+                        onLogWeight: _openLogWeightDialog,
                       ),
                       const SizedBox(height: 24),
                       Text("Today's log", style: Theme.of(context).textTheme.titleMedium),

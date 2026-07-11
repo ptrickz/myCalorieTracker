@@ -84,6 +84,12 @@ components:
           $ref: "#/components/schemas/ActivityLevel"
         goalType:
           $ref: "#/components/schemas/GoalType"
+        goalWeightKg:
+          type: number
+          nullable: true
+        milestoneWeightKg:
+          type: number
+          nullable: true
         latestWeightKg:
           type: number
           nullable: true
@@ -117,6 +123,12 @@ components:
         weightKg:
           type: number
           example: 70
+        goalWeightKg:
+          type: number
+          example: 69
+        milestoneWeightKg:
+          type: number
+          example: 75
 
     FoodItem:
       type: object

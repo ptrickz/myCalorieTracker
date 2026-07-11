@@ -12,6 +12,8 @@ const PROFILE_SELECT = {
   heightCm: true,
   activityLevel: true,
   goalType: true,
+  goalWeightKg: true,
+  milestoneWeightKg: true,
 };
 
 async function buildProfileResponse(user) {
@@ -53,7 +55,16 @@ router.get("/", async (req, res) => {
 });
 
 router.patch("/", async (req, res) => {
-  const { dateOfBirth, sex, heightCm, activityLevel, goalType, weightKg } = req.body;
+  const {
+    dateOfBirth,
+    sex,
+    heightCm,
+    activityLevel,
+    goalType,
+    weightKg,
+    goalWeightKg,
+    milestoneWeightKg,
+  } = req.body;
 
   const data = {};
   if (dateOfBirth !== undefined) data.dateOfBirth = new Date(dateOfBirth);
@@ -61,6 +72,8 @@ router.patch("/", async (req, res) => {
   if (heightCm !== undefined) data.heightCm = heightCm;
   if (activityLevel !== undefined) data.activityLevel = activityLevel;
   if (goalType !== undefined) data.goalType = goalType;
+  if (goalWeightKg !== undefined) data.goalWeightKg = goalWeightKg;
+  if (milestoneWeightKg !== undefined) data.milestoneWeightKg = milestoneWeightKg;
 
   const user = await prisma.user.update({
     where: { id: req.userId },

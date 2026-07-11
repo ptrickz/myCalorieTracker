@@ -167,6 +167,50 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  Future<List<Map<String, dynamic>>> getWeightLogs(String token) async {
+    final response = await http.get(
+      Uri.parse("$apiBaseUrl/weight-logs"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load weight history"));
+    }
+
+    return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> addWeightLog(String token, double weightKg) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/weight-logs"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({"weightKg": weightKg}),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(_extractError(response, "Could not log weight"));
+    }
+  }
+
+  Future<void> updateGoals(
+    String token, {
+    double? goalWeightKg,
+    double? milestoneWeightKg,
+  }) async {
+    final response = await http.patch(
+      Uri.parse("$apiBaseUrl/profile"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({
+        "goalWeightKg": ?goalWeightKg,
+        "milestoneWeightKg": ?milestoneWeightKg,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not save goals"));
+    }
+  }
+
   Map<String, String> _authHeaders(String token, {bool withJson = false}) {
     return {
       "Authorization": "Bearer $token",
