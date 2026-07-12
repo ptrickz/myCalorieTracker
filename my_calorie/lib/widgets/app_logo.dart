@@ -1,5 +1,4 @@
 import "package:flutter/material.dart";
-import "../theme.dart";
 
 class AppLogo extends StatelessWidget {
   final double radius;
@@ -8,18 +7,10 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: AppColors.accent,
-      child: Text(
-        "MCT",
-        style: TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.w800,
-          fontSize: radius * 0.55,
-          letterSpacing: 0.5,
-        ),
-      ),
+    return Image.asset(
+      "assets/img/logo.png",
+      width: radius * 1.5,
+      height: radius * 1.5,
     );
   }
 }
