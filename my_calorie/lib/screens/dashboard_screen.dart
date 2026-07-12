@@ -3,8 +3,9 @@ import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../widgets/weight_trend_card.dart";
 import "../widgets/app_toast.dart";
-import "../widgets/calorie_hero_card.dart";
+import "../widgets/nutrient_hero_card.dart";
 import "../widgets/macro_stat_card.dart";
+import "../widgets/streak_card.dart";
 import "../theme.dart";
 import "welcome_screen.dart";
 import "add_food_screen.dart";
@@ -23,11 +24,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   double _targetCalories = 0;
+  double _proteinTargetG = 0;
   Map<String, dynamic> _totals = const {"calories": 0, "protein": 0, "carbs": 0, "fat": 0};
   List<Map<String, dynamic>> _entries = const [];
   List<Map<String, dynamic>> _weightLogs = const [];
   double? _goalWeightKg;
   double? _milestoneWeightKg;
+  int _currentStreak = 0;
+  int _longestStreak = 0;
+  bool _loggedToday = false;
 
   @override
   void initState() {
@@ -51,14 +56,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final profile = await _apiService.getProfile(token);
       final logs = await _apiService.getTodaysLogs(token);
       final weightLogs = await _apiService.getWeightLogs(token);
+      final streak = await _apiService.getStreak(token);
 
       setState(() {
         _targetCalories = (profile["tdee"]?["targetCalories"] as num?)?.toDouble() ?? 0;
+        _proteinTargetG = (profile["proteinTargetG"] as num?)?.toDouble() ?? 0;
         _totals = logs["totals"] as Map<String, dynamic>;
         _entries = (logs["entries"] as List).cast<Map<String, dynamic>>();
         _weightLogs = weightLogs;
         _goalWeightKg = (profile["goalWeightKg"] as num?)?.toDouble();
         _milestoneWeightKg = (profile["milestoneWeightKg"] as num?)?.toDouble();
+        _currentStreak = streak["currentStreak"] as int;
+        _longestStreak = streak["longestStreak"] as int;
+        _loggedToday = streak["loggedToday"] as bool;
       });
     } catch (e) {
       setState(() => _errorMessage = e.toString());
@@ -121,11 +131,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _openEditGoalsDialog() async {
     final goalController = TextEditingController(text: _goalWeightKg?.toString() ?? "");
     final milestoneController = TextEditingController(text: _milestoneWeightKg?.toString() ?? "");
+    final proteinController = TextEditingController(
+      text: _proteinTargetG > 0 ? _proteinTargetG.round().toString() : "",
+    );
 
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Edit weight goals"),
+        title: const Text("Edit goals"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -139,6 +152,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               controller: milestoneController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: "Milestone weight (kg)"),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: proteinController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "Protein target (g)"),
             ),
           ],
         ),
@@ -157,6 +176,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         token!,
         goalWeightKg: double.tryParse(goalController.text),
         milestoneWeightKg: double.tryParse(milestoneController.text),
+        proteinTargetG: double.tryParse(proteinController.text),
       );
       _loadDashboard();
     } catch (e) {
@@ -168,6 +188,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final consumed = (_totals["calories"] as num).toDouble();
+    final proteinConsumed = (_totals["protein"] as num).toDouble();
 
     return Scaffold(
       appBar: AppBar(
@@ -183,18 +204,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(24),
                     children: [
-                      CalorieHeroCard(consumed: consumed, target: _targetCalories),
+                      StreakCard(
+                        currentStreak: _currentStreak,
+                        longestStreak: _longestStreak,
+                        loggedToday: _loggedToday,
+                      ),
+                      const SizedBox(height: 16),
+                      NutrientHeroCard(
+                        icon: Icons.local_fire_department,
+                        consumed: consumed,
+                        target: _targetCalories,
+                        titleBuilder: (remaining) => "${remaining.round()} kcal",
+                        subtitleBuilder: (c, t) => "${c.round()} eaten of ${t.round()} kcal goal",
+                      ),
+                      const SizedBox(height: 16),
+                      NutrientHeroCard(
+                        icon: Icons.fitness_center,
+                        consumed: proteinConsumed,
+                        target: _proteinTargetG,
+                        titleBuilder: (remaining) => "${remaining.round()}g protein left",
+                        subtitleBuilder: (c, t) => "${c.round()}g eaten of ${t.round()}g goal",
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(
-                            child: MacroStatCard(
-                              label: "Protein",
-                              grams: _totals["protein"] as num,
-                              dotColor: AppColors.proteinDot,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
                           Expanded(
                             child: MacroStatCard(
                               label: "Carbs",

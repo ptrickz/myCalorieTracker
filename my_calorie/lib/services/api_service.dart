@@ -167,6 +167,19 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getStreak(String token) async {
+    final response = await http.get(
+      Uri.parse("$apiBaseUrl/logs/streak"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load streak"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   Future<List<Map<String, dynamic>>> getWeightLogs(String token) async {
     final response = await http.get(
       Uri.parse("$apiBaseUrl/weight-logs"),
@@ -196,6 +209,7 @@ class ApiService {
     String token, {
     double? goalWeightKg,
     double? milestoneWeightKg,
+    double? proteinTargetG,
   }) async {
     final response = await http.patch(
       Uri.parse("$apiBaseUrl/profile"),
@@ -203,6 +217,7 @@ class ApiService {
       body: jsonEncode({
         "goalWeightKg": ?goalWeightKg,
         "milestoneWeightKg": ?milestoneWeightKg,
+        "proteinTargetG": ?proteinTargetG,
       }),
     );
 

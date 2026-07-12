@@ -14,7 +14,12 @@ const PROFILE_SELECT = {
   goalType: true,
   goalWeightKg: true,
   milestoneWeightKg: true,
+  proteinTargetG: true,
 };
+
+// A common rule-of-thumb protein target (g per kg bodyweight) used when the
+// user hasn't set an explicit override.
+const DEFAULT_PROTEIN_G_PER_KG = 1.7;
 
 async function buildProfileResponse(user) {
   const latestWeight = await prisma.weightLog.findFirst({
@@ -38,11 +43,15 @@ async function buildProfileResponse(user) {
     });
   }
 
+  const proteinTargetG =
+    user.proteinTargetG ?? (latestWeight ? latestWeight.weightKg * DEFAULT_PROTEIN_G_PER_KG : null);
+
   return {
     ...user,
     latestWeightKg: latestWeight?.weightKg ?? null,
     profileComplete,
     tdee,
+    proteinTargetG,
   };
 }
 
@@ -64,6 +73,7 @@ router.patch("/", async (req, res) => {
     weightKg,
     goalWeightKg,
     milestoneWeightKg,
+    proteinTargetG,
   } = req.body;
 
   const data = {};
@@ -74,6 +84,7 @@ router.patch("/", async (req, res) => {
   if (goalType !== undefined) data.goalType = goalType;
   if (goalWeightKg !== undefined) data.goalWeightKg = goalWeightKg;
   if (milestoneWeightKg !== undefined) data.milestoneWeightKg = milestoneWeightKg;
+  if (proteinTargetG !== undefined) data.proteinTargetG = proteinTargetG;
 
   const user = await prisma.user.update({
     where: { id: req.userId },

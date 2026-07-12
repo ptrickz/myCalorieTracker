@@ -90,6 +90,10 @@ components:
         milestoneWeightKg:
           type: number
           nullable: true
+        proteinTargetG:
+          type: number
+          nullable: true
+          description: User-set value if present, otherwise weightKg * 1.7
         latestWeightKg:
           type: number
           nullable: true
@@ -129,6 +133,9 @@ components:
         milestoneWeightKg:
           type: number
           example: 75
+        proteinTargetG:
+          type: number
+          example: 150
 
     FoodItem:
       type: object
@@ -500,6 +507,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /logs/streak:
+    get:
+      summary: Get the user's current and longest logging streak
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currentStreak:
+                    type: integer
+                  longestStreak:
+                    type: integer
+                  loggedToday:
+                    type: boolean
 
   /logs/{id}:
     delete:

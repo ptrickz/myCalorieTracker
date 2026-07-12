@@ -33,6 +33,51 @@ router.get("/", async (req, res) => {
   res.json({ date, entries, totals });
 });
 
+function dateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date, n) {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + n);
+  return result;
+}
+
+router.get("/streak", async (req, res) => {
+  const entries = await prisma.logEntry.findMany({
+    where: { userId: req.userId },
+    select: { loggedAt: true },
+  });
+
+  const loggedDays = new Set(entries.map((entry) => dateKey(entry.loggedAt)));
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const loggedToday = loggedDays.has(dateKey(today));
+
+  // Grace period: if today hasn't been logged yet, the streak isn't broken
+  // until the day is actually over — start counting from yesterday instead.
+  let cursor = loggedToday ? today : addDays(today, -1);
+  let currentStreak = 0;
+  while (loggedDays.has(dateKey(cursor))) {
+    currentStreak++;
+    cursor = addDays(cursor, -1);
+  }
+
+  const sortedDays = [...loggedDays].sort();
+  let longestStreak = 0;
+  let run = 0;
+  let prevDay = null;
+  for (const dayStr of sortedDays) {
+    const day = new Date(`${dayStr}T00:00:00.000Z`);
+    run = prevDay && addDays(prevDay, 1).getTime() === day.getTime() ? run + 1 : 1;
+    longestStreak = Math.max(longestStreak, run);
+    prevDay = day;
+  }
+
+  res.json({ currentStreak, longestStreak, loggedToday });
+});
+
 router.post("/", async (req, res) => {
   const { foodItemId, servingGrams, mealType, loggedAt } = req.body;
 
