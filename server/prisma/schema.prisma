@@ -58,6 +58,13 @@ model User {
   milestoneWeightKg Float?
   proteinTargetG    Float?
 
+  // When false (default), weekday and weekend calorie targets are both the
+  // auto-calculated TDEE target. When true, the two override fields below
+  // are used instead (falling back to the auto target if left unset).
+  useCustomCalorieTargets Boolean @default(false)
+  weekdayTargetCalories   Float?
+  weekendTargetCalories   Float?
+
   weightLogs  WeightLog[]
   logEntries  LogEntry[]
   foodItems   FoodItem[]

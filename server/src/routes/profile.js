@@ -15,6 +15,9 @@ const PROFILE_SELECT = {
   goalWeightKg: true,
   milestoneWeightKg: true,
   proteinTargetG: true,
+  useCustomCalorieTargets: true,
+  weekdayTargetCalories: true,
+  weekendTargetCalories: true,
 };
 
 // A common rule-of-thumb protein target (g per kg bodyweight) used when the
@@ -46,12 +49,24 @@ async function buildProfileResponse(user) {
   const proteinTargetG =
     user.proteinTargetG ?? (latestWeight ? latestWeight.weightKg * DEFAULT_PROTEIN_G_PER_KG : null);
 
+  // Weekday/weekend targets both default to the auto-calculated TDEE target
+  // unless the user has opted into custom overrides.
+  const autoTargetCalories = tdee?.targetCalories ?? null;
+  const weekdayTargetCalories = user.useCustomCalorieTargets
+    ? (user.weekdayTargetCalories ?? autoTargetCalories)
+    : autoTargetCalories;
+  const weekendTargetCalories = user.useCustomCalorieTargets
+    ? (user.weekendTargetCalories ?? autoTargetCalories)
+    : autoTargetCalories;
+
   return {
     ...user,
     latestWeightKg: latestWeight?.weightKg ?? null,
     profileComplete,
     tdee,
     proteinTargetG,
+    weekdayTargetCalories,
+    weekendTargetCalories,
   };
 }
 
@@ -74,6 +89,9 @@ router.patch("/", async (req, res) => {
     goalWeightKg,
     milestoneWeightKg,
     proteinTargetG,
+    useCustomCalorieTargets,
+    weekdayTargetCalories,
+    weekendTargetCalories,
   } = req.body;
 
   const data = {};
@@ -85,6 +103,9 @@ router.patch("/", async (req, res) => {
   if (goalWeightKg !== undefined) data.goalWeightKg = goalWeightKg;
   if (milestoneWeightKg !== undefined) data.milestoneWeightKg = milestoneWeightKg;
   if (proteinTargetG !== undefined) data.proteinTargetG = proteinTargetG;
+  if (useCustomCalorieTargets !== undefined) data.useCustomCalorieTargets = useCustomCalorieTargets;
+  if (weekdayTargetCalories !== undefined) data.weekdayTargetCalories = weekdayTargetCalories;
+  if (weekendTargetCalories !== undefined) data.weekendTargetCalories = weekendTargetCalories;
 
   const user = await prisma.user.update({
     where: { id: req.userId },

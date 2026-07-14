@@ -94,6 +94,17 @@ components:
           type: number
           nullable: true
           description: User-set value if present, otherwise weightKg * 1.7
+        useCustomCalorieTargets:
+          type: boolean
+          description: When false, weekdayTargetCalories and weekendTargetCalories are both the auto TDEE target.
+        weekdayTargetCalories:
+          type: number
+          nullable: true
+          description: Effective (resolved) weekday calorie target.
+        weekendTargetCalories:
+          type: number
+          nullable: true
+          description: Effective (resolved) weekend calorie target.
         latestWeightKg:
           type: number
           nullable: true
@@ -136,6 +147,15 @@ components:
         proteinTargetG:
           type: number
           example: 150
+        useCustomCalorieTargets:
+          type: boolean
+          example: true
+        weekdayTargetCalories:
+          type: number
+          example: 1700
+        weekendTargetCalories:
+          type: number
+          example: 2200
 
     FoodItem:
       type: object

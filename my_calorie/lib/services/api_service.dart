@@ -291,6 +291,9 @@ class ApiService {
     double? goalWeightKg,
     double? milestoneWeightKg,
     double? proteinTargetG,
+    bool? useCustomCalorieTargets,
+    double? weekdayTargetCalories,
+    double? weekendTargetCalories,
   }) async {
     final response = await http.patch(
       Uri.parse("$apiBaseUrl/profile"),
@@ -299,6 +302,9 @@ class ApiService {
         "goalWeightKg": ?goalWeightKg,
         "milestoneWeightKg": ?milestoneWeightKg,
         "proteinTargetG": ?proteinTargetG,
+        "useCustomCalorieTargets": ?useCustomCalorieTargets,
+        "weekdayTargetCalories": ?weekdayTargetCalories,
+        "weekendTargetCalories": ?weekendTargetCalories,
       }),
     );
 

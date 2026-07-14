@@ -28,6 +28,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _errorMessage;
   double _targetCalories = 0;
   double _proteinTargetG = 0;
+  bool _useCustomCalorieTargets = false;
+  double _weekdayTargetCalories = 0;
+  double _weekendTargetCalories = 0;
   Map<String, dynamic> _totals = const {"calories": 0, "protein": 0, "carbs": 0, "fat": 0};
   Map<String, dynamic> _dayTotals = const {"calories": 0, "protein": 0, "carbs": 0, "fat": 0};
   List<Map<String, dynamic>> _entries = const [];
@@ -40,6 +43,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime _viewedDate = DateTime.now();
 
   bool get _isViewingToday => _dateKey(_viewedDate) == _dateKey(DateTime.now());
+
+  bool get _isWeekendToday =>
+      DateTime.now().weekday == DateTime.saturday || DateTime.now().weekday == DateTime.sunday;
 
   String _dateKey(DateTime date) =>
       "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
@@ -77,8 +83,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final streak = await _apiService.getStreak(token);
 
       setState(() {
-        _targetCalories = (profile["tdee"]?["targetCalories"] as num?)?.toDouble() ?? 0;
         _proteinTargetG = (profile["proteinTargetG"] as num?)?.toDouble() ?? 0;
+        _useCustomCalorieTargets = profile["useCustomCalorieTargets"] as bool? ?? false;
+        _weekdayTargetCalories = (profile["weekdayTargetCalories"] as num?)?.toDouble() ?? 0;
+        _weekendTargetCalories = (profile["weekendTargetCalories"] as num?)?.toDouble() ?? 0;
+        _targetCalories = _isWeekendToday ? _weekendTargetCalories : _weekdayTargetCalories;
         _totals = logs["totals"] as Map<String, dynamic>;
         _weightLogs = weightLogs;
         _goalWeightKg = (profile["goalWeightKg"] as num?)?.toDouble();
@@ -193,37 +202,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final proteinController = TextEditingController(
       text: _proteinTargetG > 0 ? _proteinTargetG.round().toString() : "",
     );
+    final weekdayController = TextEditingController(
+      text: _weekdayTargetCalories > 0 ? _weekdayTargetCalories.round().toString() : "",
+    );
+    final weekendController = TextEditingController(
+      text: _weekendTargetCalories > 0 ? _weekendTargetCalories.round().toString() : "",
+    );
+    var useCustomTargets = _useCustomCalorieTargets;
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Edit goals"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: goalController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Goal weight (kg)"),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text("Edit goals"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: goalController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Goal weight (kg)"),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: milestoneController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Milestone weight (kg)"),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: proteinController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Protein target (g)"),
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  value: useCustomTargets,
+                  onChanged: (value) => setDialogState(() => useCustomTargets = value ?? false),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text("Use different weekday/weekend calorie targets"),
+                  subtitle: const Text("Off: both days use your calculated target."),
+                ),
+                if (useCustomTargets) ...[
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: weekdayController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Weekday calorie target"),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: weekendController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Weekend calorie target"),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: milestoneController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Milestone weight (kg)"),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: proteinController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Protein target (g)"),
-            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
+            TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Save")),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Save")),
-        ],
       ),
     );
 
@@ -236,6 +279,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         goalWeightKg: double.tryParse(goalController.text),
         milestoneWeightKg: double.tryParse(milestoneController.text),
         proteinTargetG: double.tryParse(proteinController.text),
+        useCustomCalorieTargets: useCustomTargets,
+        weekdayTargetCalories: useCustomTargets ? double.tryParse(weekdayController.text) : null,
+        weekendTargetCalories: useCustomTargets ? double.tryParse(weekendController.text) : null,
       );
       _loadDashboard();
     } catch (e) {
