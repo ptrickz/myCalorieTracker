@@ -73,8 +73,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         weightKg: double.parse(_weightController.text),
       );
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      // pushAndRemoveUntil, not pushReplacement — clears Welcome/Login out of
+      // the back stack too, so Dashboard doesn't show a stray back button.
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        (route) => false,
       );
     } catch (e) {
       setState(() => _errorMessage = e.toString());

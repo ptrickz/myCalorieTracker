@@ -93,11 +93,16 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Future<List<Map<String, dynamic>>> searchFoods(String token, String query) async {
-    final response = await http.get(
-      Uri.parse("$apiBaseUrl/foods?search=${Uri.encodeQueryComponent(query)}"),
-      headers: _authHeaders(token),
-    );
+  /// With no query (or an empty one), returns the user's recent foods first,
+  /// then fills up to 20 with other available foods — used as the Add Food
+  /// screen's default list before the user types anything.
+  Future<List<Map<String, dynamic>>> searchFoods(String token, [String? query]) async {
+    final trimmed = query?.trim() ?? "";
+    final uri = trimmed.isEmpty
+        ? Uri.parse("$apiBaseUrl/foods")
+        : Uri.parse("$apiBaseUrl/foods?search=${Uri.encodeQueryComponent(trimmed)}");
+
+    final response = await http.get(uri, headers: _authHeaders(token));
 
     if (response.statusCode != 200) {
       throw ApiException(_extractError(response, "Could not search foods"));
@@ -154,14 +159,45 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> getTodaysLogs(String token) async {
-    final response = await http.get(
-      Uri.parse("$apiBaseUrl/logs"),
-      headers: _authHeaders(token),
+  Future<void> updateLogEntry(
+    String token,
+    String logEntryId, {
+    double? servingGrams,
+    String? mealType,
+  }) async {
+    final response = await http.patch(
+      Uri.parse("$apiBaseUrl/logs/$logEntryId"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({
+        "servingGrams": ?servingGrams,
+        "mealType": ?mealType,
+      }),
     );
 
     if (response.statusCode != 200) {
-      throw ApiException(_extractError(response, "Could not load today's log"));
+      throw ApiException(_extractError(response, "Could not update this entry"));
+    }
+  }
+
+  Future<void> deleteLogEntry(String token, String logEntryId) async {
+    final response = await http.delete(
+      Uri.parse("$apiBaseUrl/logs/$logEntryId"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 204) {
+      throw ApiException(_extractError(response, "Could not delete this entry"));
+    }
+  }
+
+  Future<Map<String, dynamic>> getLogs(String token, {String? date}) async {
+    final uri = date == null
+        ? Uri.parse("$apiBaseUrl/logs")
+        : Uri.parse("$apiBaseUrl/logs?date=$date");
+    final response = await http.get(uri, headers: _authHeaders(token));
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load log"));
     }
 
     return jsonDecode(response.body) as Map<String, dynamic>;

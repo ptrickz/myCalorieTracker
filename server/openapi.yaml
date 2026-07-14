@@ -163,6 +163,9 @@ components:
         createdAt:
           type: string
           format: date-time
+        isRecent:
+          type: boolean
+          description: Only present on the no-search default list.
 
     FoodItemCreate:
       type: object
@@ -404,7 +407,12 @@ paths:
 
   /foods:
     get:
-      summary: Search food items by name
+      summary: Search food items by name, or browse recents/available foods
+      description: >-
+        With `search`, does a case-insensitive substring match on name.
+        Without it, returns the user's recently-logged foods first (each
+        flagged `isRecent: true`), then fills the rest of the list up to 20
+        with other available foods.
       parameters:
         - name: search
           in: query
@@ -527,6 +535,38 @@ paths:
                     type: boolean
 
   /logs/{id}:
+    patch:
+      summary: Edit a log entry's serving size and/or meal type
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                servingGrams:
+                  type: number
+                  example: 150
+                mealType:
+                  $ref: "#/components/schemas/MealType"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogEntry"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     delete:
       summary: Delete a log entry
       parameters:

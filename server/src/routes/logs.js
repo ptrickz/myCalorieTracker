@@ -109,6 +109,37 @@ router.post("/", async (req, res) => {
   res.status(201).json(entry);
 });
 
+router.patch("/:id", async (req, res) => {
+  const entry = await prisma.logEntry.findUnique({ where: { id: req.params.id } });
+
+  if (!entry || entry.userId !== req.userId) {
+    return res.status(404).json({ error: "Log entry not found" });
+  }
+
+  const { servingGrams, mealType } = req.body;
+  const data = {};
+
+  if (mealType !== undefined) data.mealType = mealType;
+
+  if (servingGrams !== undefined) {
+    const foodItem = await prisma.foodItem.findUnique({ where: { id: entry.foodItemId } });
+    const scale = servingGrams / 100;
+    data.servingGrams = servingGrams;
+    data.calories = foodItem.caloriesPer100g * scale;
+    data.protein = foodItem.proteinPer100g * scale;
+    data.carbs = foodItem.carbsPer100g * scale;
+    data.fat = foodItem.fatPer100g * scale;
+  }
+
+  const updated = await prisma.logEntry.update({
+    where: { id: req.params.id },
+    data,
+    include: { foodItem: { select: { name: true } } },
+  });
+
+  res.json(updated);
+});
+
 router.delete("/:id", async (req, res) => {
   const entry = await prisma.logEntry.findUnique({ where: { id: req.params.id } });
 

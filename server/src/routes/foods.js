@@ -4,15 +4,50 @@ const prisma = require("../db");
 const router = express.Router();
 
 router.get("/", async (req, res) => {
-  const { search } = req.query;
+  const search = req.query.search?.trim();
 
-  const foods = await prisma.foodItem.findMany({
-    where: search ? { name: { contains: search, mode: "insensitive" } } : undefined,
-    orderBy: { name: "asc" },
-    take: 50,
+  if (search) {
+    const foods = await prisma.foodItem.findMany({
+      where: { name: { contains: search, mode: "insensitive" } },
+      orderBy: { name: "asc" },
+      take: 50,
+    });
+    return res.json(foods);
+  }
+
+  // No search query: this is the screen's default view, so surface the
+  // user's recently-logged foods first (for one-tap re-logging), then fill
+  // the rest of the list up to 20 with other available foods.
+  const recentLogEntries = await prisma.logEntry.findMany({
+    where: { userId: req.userId },
+    orderBy: { loggedAt: "desc" },
+    select: { foodItemId: true },
+    distinct: ["foodItemId"],
+    take: 20,
   });
 
-  res.json(foods);
+  const recentFoodIds = recentLogEntries.map((entry) => entry.foodItemId);
+  const recentFoods = recentFoodIds.length
+    ? await prisma.foodItem.findMany({ where: { id: { in: recentFoodIds } } })
+    : [];
+
+  // Prisma's `in` filter doesn't preserve order, so re-sort to match recency.
+  const foodById = new Map(recentFoods.map((food) => [food.id, food]));
+  const orderedRecentFoods = recentFoodIds.map((id) => foodById.get(id)).filter(Boolean);
+
+  const remainingSlots = 20 - orderedRecentFoods.length;
+  const otherFoods = remainingSlots > 0
+    ? await prisma.foodItem.findMany({
+        where: recentFoodIds.length ? { id: { notIn: recentFoodIds } } : undefined,
+        orderBy: { name: "asc" },
+        take: remainingSlots,
+      })
+    : [];
+
+  res.json([
+    ...orderedRecentFoods.map((food) => ({ ...food, isRecent: true })),
+    ...otherFoods.map((food) => ({ ...food, isRecent: false })),
+  ]);
 });
 
 router.get("/barcode/:barcode", async (req, res) => {

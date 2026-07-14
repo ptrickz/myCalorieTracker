@@ -43,7 +43,13 @@ class _RootScreenState extends State<RootScreen> {
 
   void _goTo(Widget screen) {
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => screen));
+    // Clears the entire back stack, not just the top route — otherwise
+    // Welcome/Login stays buried underneath and shows up as a stray back
+    // button on whatever screen we land on.
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => screen),
+      (route) => false,
+    );
   }
 
   @override

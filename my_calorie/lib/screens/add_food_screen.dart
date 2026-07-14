@@ -1,6 +1,8 @@
+import "dart:async";
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
+import "../constants.dart";
 import "create_food_screen.dart";
 
 class AddFoodScreen extends StatefulWidget {
@@ -22,18 +24,26 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   bool _isSearching = false;
   bool _isLogging = false;
   String? _errorMessage;
+  Timer? _debounce;
 
-  static const _mealTypes = {
-    "BREAKFAST": "Breakfast",
-    "LUNCH": "Lunch",
-    "DINNER": "Dinner",
-    "SNACK": "Snack",
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadFoods();
+  }
 
-  Future<void> _handleSearch() async {
-    final query = _searchController.text.trim();
-    if (query.isEmpty) return;
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
 
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () => _loadFoods(value));
+  }
+
+  Future<void> _loadFoods([String? query]) async {
     setState(() {
       _isSearching = true;
       _errorMessage = null;
@@ -42,9 +52,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     try {
       final token = await _authStorage.readToken();
       final results = await _apiService.searchFoods(token!, query);
-      setState(() => _results = results);
+      if (mounted) setState(() => _results = results);
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      if (mounted) setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
@@ -98,6 +108,12 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   }
 
   Widget _buildSearchStep() {
+    final isBrowsingDefault = _searchController.text.trim().isEmpty;
+    final recents = isBrowsingDefault
+        ? _results.where((f) => f["isRecent"] == true).toList()
+        : <Map<String, dynamic>>[];
+    final others = isBrowsingDefault ? _results.where((f) => f["isRecent"] != true).toList() : _results;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -107,26 +123,36 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
               child: TextField(
                 controller: _searchController,
                 decoration: const InputDecoration(labelText: "Search foods"),
-                onSubmitted: (_) => _handleSearch(),
+                onChanged: _onSearchChanged,
               ),
             ),
-            IconButton(onPressed: _handleSearch, icon: const Icon(Icons.search)),
+            IconButton(
+              onPressed: () => _loadFoods(_searchController.text),
+              icon: const Icon(Icons.search),
+            ),
           ],
         ),
         const SizedBox(height: 16),
         if (_errorMessage != null)
           Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-        if (_isSearching) const Center(child: CircularProgressIndicator()),
+        if (_isSearching) const LinearProgressIndicator(),
         Expanded(
           child: ListView(
             children: [
-              ..._results.map(
-                (food) => ListTile(
-                  title: Text(food["name"] as String),
-                  subtitle: Text("${(food["caloriesPer100g"] as num).round()} kcal / 100g"),
-                  onTap: () => setState(() => _selectedFood = food),
+              if (recents.isNotEmpty) ...[
+                Text("Recent", style: Theme.of(context).textTheme.labelLarge),
+                ...recents.map(_buildFoodTile),
+                const SizedBox(height: 8),
+              ],
+              if (others.isNotEmpty) ...[
+                if (isBrowsingDefault) Text("All Foods", style: Theme.of(context).textTheme.labelLarge),
+                ...others.map(_buildFoodTile),
+              ],
+              if (!_isSearching && _results.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text("No foods found."),
                 ),
-              ),
               TextButton(
                 onPressed: _openCreateFood,
                 child: const Text("Can't find it? Add a custom food"),
@@ -135,6 +161,14 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFoodTile(Map<String, dynamic> food) {
+    return ListTile(
+      title: Text(food["name"] as String),
+      subtitle: Text("${(food["caloriesPer100g"] as num).round()} kcal / 100g"),
+      onTap: () => setState(() => _selectedFood = food),
     );
   }
 
@@ -153,7 +187,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         DropdownButtonFormField<String>(
           initialValue: _mealType,
           decoration: const InputDecoration(labelText: "Meal"),
-          items: _mealTypes.entries
+          items: mealTypeLabels.entries
               .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
               .toList(),
           onChanged: (value) => setState(() => _mealType = value!),
