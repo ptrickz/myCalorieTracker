@@ -27,6 +27,7 @@ class FoodPhotoPicker extends StatelessWidget {
     final bytes = photoBase64 == null ? null : base64Decode(photoBase64!);
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
           onTap: _pickPhoto,
@@ -45,16 +46,23 @@ class FoodPhotoPicker extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        TextButton(
-          onPressed: _pickPhoto,
-          child: Text(bytes == null ? "Add photo" : "Change photo"),
-        ),
-        if (bytes != null)
-          TextButton(
-            onPressed: () => onChanged(null),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text("Remove"),
+        Expanded(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton(
+                onPressed: _pickPhoto,
+                child: Text(bytes == null ? "Add photo" : "Change photo"),
+              ),
+              if (bytes != null)
+                TextButton(
+                  onPressed: () => onChanged(null),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  child: const Text("Remove"),
+                ),
+            ],
           ),
+        ),
       ],
     );
   }
