@@ -11,6 +11,7 @@ import "../constants.dart";
 import "welcome_screen.dart";
 import "add_food_screen.dart";
 import "my_custom_foods_screen.dart";
+import "profile_screen.dart";
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -31,8 +32,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _useCustomCalorieTargets = false;
   double _weekdayTargetCalories = 0;
   double _weekendTargetCalories = 0;
-  Map<String, dynamic> _totals = const {"calories": 0, "protein": 0, "carbs": 0, "fat": 0};
-  Map<String, dynamic> _dayTotals = const {"calories": 0, "protein": 0, "carbs": 0, "fat": 0};
+  Map<String, dynamic> _totals = const {
+    "calories": 0,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 0,
+  };
+  Map<String, dynamic> _dayTotals = const {
+    "calories": 0,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 0,
+  };
   List<Map<String, dynamic>> _entries = const [];
   List<Map<String, dynamic>> _weightLogs = const [];
   double? _goalWeightKg;
@@ -45,7 +56,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool get _isViewingToday => _dateKey(_viewedDate) == _dateKey(DateTime.now());
 
   bool get _isWeekendToday =>
-      DateTime.now().weekday == DateTime.saturday || DateTime.now().weekday == DateTime.sunday;
+      DateTime.now().weekday == DateTime.saturday ||
+      DateTime.now().weekday == DateTime.sunday;
 
   String _dateKey(DateTime date) =>
       "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
@@ -84,10 +96,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       setState(() {
         _proteinTargetG = (profile["proteinTargetG"] as num?)?.toDouble() ?? 0;
-        _useCustomCalorieTargets = profile["useCustomCalorieTargets"] as bool? ?? false;
-        _weekdayTargetCalories = (profile["weekdayTargetCalories"] as num?)?.toDouble() ?? 0;
-        _weekendTargetCalories = (profile["weekendTargetCalories"] as num?)?.toDouble() ?? 0;
-        _targetCalories = _isWeekendToday ? _weekendTargetCalories : _weekdayTargetCalories;
+        _useCustomCalorieTargets =
+            profile["useCustomCalorieTargets"] as bool? ?? false;
+        _weekdayTargetCalories =
+            (profile["weekdayTargetCalories"] as num?)?.toDouble() ?? 0;
+        _weekendTargetCalories =
+            (profile["weekendTargetCalories"] as num?)?.toDouble() ?? 0;
+        _targetCalories = _isWeekendToday
+            ? _weekendTargetCalories
+            : _weekdayTargetCalories;
         _totals = logs["totals"] as Map<String, dynamic>;
         _weightLogs = weightLogs;
         _goalWeightKg = (profile["goalWeightKg"] as num?)?.toDouble();
@@ -128,7 +145,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _goToPreviousDay() => _loadDayLogs(_viewedDate.subtract(const Duration(days: 1)));
+  void _goToPreviousDay() =>
+      _loadDayLogs(_viewedDate.subtract(const Duration(days: 1)));
 
   void _goToNextDay() {
     if (_isViewingToday) return;
@@ -149,16 +167,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _openAddFood() async {
-    final logged = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const AddFoodScreen()),
-    );
+    final logged = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const AddFoodScreen()));
     if (logged == true) _loadDashboard();
   }
 
   Future<void> _openMyCustomFoods() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MyCustomFoodsScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MyCustomFoodsScreen()));
+    _loadDashboard();
+  }
+
+  Future<void> _openProfile() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
     _loadDashboard();
   }
 
@@ -175,9 +200,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           decoration: const InputDecoration(labelText: "Weight (kg)"),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(double.tryParse(controller.text)),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(double.tryParse(controller.text)),
             child: const Text("Save"),
           ),
         ],
@@ -197,16 +226,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _openEditGoalsDialog() async {
-    final goalController = TextEditingController(text: _goalWeightKg?.toString() ?? "");
-    final milestoneController = TextEditingController(text: _milestoneWeightKg?.toString() ?? "");
+    final goalController = TextEditingController(
+      text: _goalWeightKg?.toString() ?? "",
+    );
+    final milestoneController = TextEditingController(
+      text: _milestoneWeightKg?.toString() ?? "",
+    );
     final proteinController = TextEditingController(
       text: _proteinTargetG > 0 ? _proteinTargetG.round().toString() : "",
     );
     final weekdayController = TextEditingController(
-      text: _weekdayTargetCalories > 0 ? _weekdayTargetCalories.round().toString() : "",
+      text: _weekdayTargetCalories > 0
+          ? _weekdayTargetCalories.round().toString()
+          : "",
     );
     final weekendController = TextEditingController(
-      text: _weekendTargetCalories > 0 ? _weekendTargetCalories.round().toString() : "",
+      text: _weekendTargetCalories > 0
+          ? _weekendTargetCalories.round().toString()
+          : "",
     );
     var useCustomTargets = _useCustomCalorieTargets;
 
@@ -222,49 +259,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 TextField(
                   controller: goalController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Goal weight (kg)"),
+                  decoration: const InputDecoration(
+                    labelText: "Goal weight (kg)",
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: milestoneController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Milestone weight (kg)"),
+                  decoration: const InputDecoration(
+                    labelText: "Milestone weight (kg)",
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: proteinController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Protein target (g)"),
+                  decoration: const InputDecoration(
+                    labelText: "Protein target (g)",
+                  ),
                 ),
                 const SizedBox(height: 12),
-                CheckboxListTile(
-                  value: useCustomTargets,
-                  onChanged: (value) => setDialogState(() => useCustomTargets = value ?? false),
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text("Use different weekday/weekend calorie targets"),
-                  subtitle: const Text("Off: both days use your calculated target."),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: useCustomTargets,
+                      onChanged: (value) => setDialogState(
+                        () => useCustomTargets = value ?? false,
+                      ),
+                    ),
+                    const Text("Custom weekday/weekend targets"),
+                  ],
                 ),
                 if (useCustomTargets) ...[
                   const SizedBox(height: 4),
                   TextField(
                     controller: weekdayController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Weekday calorie target"),
+                    decoration: const InputDecoration(
+                      labelText: "Weekday calorie target",
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: weekendController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Weekend calorie target"),
+                    decoration: const InputDecoration(
+                      labelText: "Weekend calorie target",
+                    ),
                   ),
                 ],
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
-            TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Save")),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text("Save"),
+            ),
           ],
         ),
       ),
@@ -280,8 +336,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         milestoneWeightKg: double.tryParse(milestoneController.text),
         proteinTargetG: double.tryParse(proteinController.text),
         useCustomCalorieTargets: useCustomTargets,
-        weekdayTargetCalories: useCustomTargets ? double.tryParse(weekdayController.text) : null,
-        weekendTargetCalories: useCustomTargets ? double.tryParse(weekendController.text) : null,
+        weekdayTargetCalories: useCustomTargets
+            ? double.tryParse(weekdayController.text)
+            : null,
+        weekendTargetCalories: useCustomTargets
+            ? double.tryParse(weekendController.text)
+            : null,
       );
       _loadDashboard();
     } catch (e) {
@@ -308,14 +368,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               TextField(
                 controller: servingController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Serving size (grams)"),
+                decoration: const InputDecoration(
+                  labelText: "Serving size (grams)",
+                ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: mealType,
                 decoration: const InputDecoration(labelText: "Meal"),
                 items: mealTypeLabels.entries
-                    .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    .map(
+                      (e) =>
+                          DropdownMenuItem(value: e.key, child: Text(e.value)),
+                    )
                     .toList(),
                 onChanged: (value) => setDialogState(() => mealType = value!),
               ),
@@ -327,8 +392,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: TextButton.styleFrom(foregroundColor: AppColors.error),
               child: const Text("Delete"),
             ),
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
-            TextButton(onPressed: () => Navigator.of(context).pop("save"), child: const Text("Save")),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop("save"),
+              child: const Text("Save"),
+            ),
           ],
         ),
       ),
@@ -375,125 +446,155 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: const Text("MyCalorie"),
         actions: [
           IconButton(
+            onPressed: _openProfile,
+            icon: const Icon(Icons.person),
+            tooltip: "Profile",
+          ),
+          IconButton(
             onPressed: _openMyCustomFoods,
             icon: const Icon(Icons.restaurant_menu),
             tooltip: "My Custom Foods",
           ),
-          IconButton(onPressed: _handleLogout, icon: const Icon(Icons.logout)),
+          IconButton(
+            onPressed: _handleLogout,
+            icon: const Icon(Icons.logout),
+            tooltip: "Logout",
+          ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
-              : RefreshIndicator(
-                  onRefresh: _loadDashboard,
-                  child: ListView(
-                    padding: const EdgeInsets.all(24),
+          ? Center(
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadDashboard,
+              child: ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  StreakCard(
+                    currentStreak: _currentStreak,
+                    longestStreak: _longestStreak,
+                    loggedToday: _loggedToday,
+                  ),
+                  const SizedBox(height: 16),
+                  NutrientHeroCard(
+                    icon: Icons.local_fire_department,
+                    consumed: consumed,
+                    target: _targetCalories,
+                    titleBuilder: (remaining) => "${remaining.round()} kcal",
+                    subtitleBuilder: (c, t) =>
+                        "${c.round()} eaten of ${t.round()} kcal goal",
+                    useRingProgress: true,
+                  ),
+                  const SizedBox(height: 16),
+                  NutrientHeroCard(
+                    icon: Icons.fitness_center,
+                    consumed: proteinConsumed,
+                    target: _proteinTargetG,
+                    titleBuilder: (remaining) =>
+                        "${remaining.round()}g protein left",
+                    subtitleBuilder: (c, t) =>
+                        "${c.round()}g eaten of ${t.round()}g goal",
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
-                      StreakCard(
-                        currentStreak: _currentStreak,
-                        longestStreak: _longestStreak,
-                        loggedToday: _loggedToday,
-                      ),
-                      const SizedBox(height: 16),
-                      NutrientHeroCard(
-                        icon: Icons.local_fire_department,
-                        consumed: consumed,
-                        target: _targetCalories,
-                        titleBuilder: (remaining) => "${remaining.round()} kcal",
-                        subtitleBuilder: (c, t) => "${c.round()} eaten of ${t.round()} kcal goal",
-                        useRingProgress: true,
-                      ),
-                      const SizedBox(height: 16),
-                      NutrientHeroCard(
-                        icon: Icons.fitness_center,
-                        consumed: proteinConsumed,
-                        target: _proteinTargetG,
-                        titleBuilder: (remaining) => "${remaining.round()}g protein left",
-                        subtitleBuilder: (c, t) => "${c.round()}g eaten of ${t.round()}g goal",
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: MacroStatCard(
-                              label: "Carbs",
-                              grams: _totals["carbs"] as num,
-                              dotColor: AppColors.carbsDot,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: MacroStatCard(
-                              label: "Fat",
-                              grams: _totals["fat"] as num,
-                              dotColor: AppColors.fatDot,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      WeightTrendCard(
-                        weightLogs: _weightLogs,
-                        goalWeightKg: _goalWeightKg,
-                        milestoneWeightKg: _milestoneWeightKg,
-                        onEditGoals: _openEditGoalsDialog,
-                        onLogWeight: _openLogWeightDialog,
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            onPressed: _isLoadingDay ? null : _goToPreviousDay,
-                            icon: const Icon(Icons.chevron_left),
-                          ),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Text(
-                                  _dateLabel(_viewedDate),
-                                  textAlign: TextAlign.center,
-                                  style: Theme.of(context).textTheme.titleMedium,
-                                ),
-                                Text(
-                                  "${(_dayTotals["calories"] as num).round()} kcal · ${(_dayTotals["protein"] as num).round()}g protein",
-                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: _isLoadingDay || _isViewingToday ? null : _goToNextDay,
-                            icon: const Icon(Icons.chevron_right),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (_isLoadingDay)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (_entries.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          child: Text(_isViewingToday ? "Nothing logged yet today." : "Nothing logged this day."),
-                        )
-                      else
-                        ..._entries.map(
-                          (entry) => ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(entry["foodItem"]["name"] as String),
-                            subtitle: Text("${entry["mealType"]} · ${(entry["servingGrams"] as num).round()}g"),
-                            trailing: Text("${(entry["calories"] as num).round()} kcal"),
-                            onTap: () => _openEditLogEntryDialog(entry),
-                          ),
+                      Expanded(
+                        child: MacroStatCard(
+                          label: "Carbs",
+                          grams: _totals["carbs"] as num,
+                          dotColor: AppColors.carbsDot,
                         ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: MacroStatCard(
+                          label: "Fat",
+                          grams: _totals["fat"] as num,
+                          dotColor: AppColors.fatDot,
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  WeightTrendCard(
+                    weightLogs: _weightLogs,
+                    goalWeightKg: _goalWeightKg,
+                    milestoneWeightKg: _milestoneWeightKg,
+                    onEditGoals: _openEditGoalsDialog,
+                    onLogWeight: _openLogWeightDialog,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        onPressed: _isLoadingDay ? null : _goToPreviousDay,
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              _dateLabel(_viewedDate),
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text(
+                              "${(_dayTotals["calories"] as num).round()} kcal · ${(_dayTotals["protein"] as num).round()}g protein",
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _isLoadingDay || _isViewingToday
+                            ? null
+                            : _goToNextDay,
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (_isLoadingDay)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_entries.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        _isViewingToday
+                            ? "Nothing logged yet today."
+                            : "Nothing logged this day.",
+                      ),
+                    )
+                  else
+                    ..._entries.map(
+                      (entry) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(entry["foodItem"]["name"] as String),
+                        subtitle: Text(
+                          "${entry["mealType"]} · ${(entry["servingGrams"] as num).round()}g",
+                        ),
+                        trailing: Text(
+                          "${(entry["calories"] as num).round()} kcal",
+                        ),
+                        onTap: () => _openEditLogEntryDialog(entry),
+                      ),
+                    ),
+                ],
+              ),
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddFood,
         child: const Icon(Icons.add),

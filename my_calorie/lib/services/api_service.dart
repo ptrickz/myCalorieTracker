@@ -71,7 +71,7 @@ class ApiService {
     required double heightCm,
     required String activityLevel,
     required String goalType,
-    required double weightKg,
+    double? weightKg,
   }) async {
     final response = await http.patch(
       Uri.parse("$apiBaseUrl/profile"),
@@ -82,7 +82,7 @@ class ApiService {
         "heightCm": heightCm,
         "activityLevel": activityLevel,
         "goalType": goalType,
-        "weightKg": weightKg,
+        "weightKg": ?weightKg,
       }),
     );
 
