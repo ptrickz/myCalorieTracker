@@ -1,4 +1,5 @@
 import "dart:async";
+import "dart:convert";
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
@@ -40,7 +41,10 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () => _loadFoods(value));
+    _debounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _loadFoods(value),
+    );
   }
 
   Future<void> _loadFoods([String? query]) async {
@@ -62,7 +66,10 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 
   Future<void> _openCreateFood() async {
     final created = await Navigator.of(context).push<Map<String, dynamic>>(
-      MaterialPageRoute(builder: (_) => CreateFoodScreen(initialName: _searchController.text.trim())),
+      MaterialPageRoute(
+        builder: (_) =>
+            CreateFoodScreen(initialName: _searchController.text.trim()),
+      ),
     );
     if (created != null) setState(() => _selectedFood = created);
   }
@@ -112,7 +119,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     final recents = isBrowsingDefault
         ? _results.where((f) => f["isRecent"] == true).toList()
         : <Map<String, dynamic>>[];
-    final others = isBrowsingDefault ? _results.where((f) => f["isRecent"] != true).toList() : _results;
+    final others = isBrowsingDefault
+        ? _results.where((f) => f["isRecent"] != true).toList()
+        : _results;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -145,7 +154,11 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                 const SizedBox(height: 8),
               ],
               if (others.isNotEmpty) ...[
-                if (isBrowsingDefault) Text("All Foods", style: Theme.of(context).textTheme.labelLarge),
+                if (isBrowsingDefault)
+                  Text(
+                    "All Foods",
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
                 ...others.map(_buildFoodTile),
               ],
               if (!_isSearching && _results.isEmpty)
@@ -165,7 +178,13 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   }
 
   Widget _buildFoodTile(Map<String, dynamic> food) {
+    final photoBase64 = food["photoBase64"] as String?;
     return ListTile(
+      leading: photoBase64 == null
+          ? const CircleAvatar(child: Icon(Icons.restaurant))
+          : CircleAvatar(
+              backgroundImage: MemoryImage(base64Decode(photoBase64)),
+            ),
       title: Text(food["name"] as String),
       subtitle: Text("${(food["caloriesPer100g"] as num).round()} kcal / 100g"),
       onTap: () => setState(() => _selectedFood = food),
@@ -176,7 +195,10 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(_selectedFood!["name"] as String, style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          _selectedFood!["name"] as String,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         const SizedBox(height: 16),
         TextField(
           controller: _servingController,
@@ -196,12 +218,19 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         if (_errorMessage != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ElevatedButton(
           onPressed: _isLogging ? null : _handleLogIt,
           child: _isLogging
-              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text("Log it"),
         ),
         TextButton(
