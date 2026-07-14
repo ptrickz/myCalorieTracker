@@ -118,6 +118,7 @@ class ApiService {
     required double proteinPer100g,
     required double carbsPer100g,
     required double fatPer100g,
+    String? photoBase64,
   }) async {
     final response = await http.post(
       Uri.parse("$apiBaseUrl/foods"),
@@ -128,11 +129,55 @@ class ApiService {
         "proteinPer100g": proteinPer100g,
         "carbsPer100g": carbsPer100g,
         "fatPer100g": fatPer100g,
+        "photoBase64": ?photoBase64,
       }),
     );
 
     if (response.statusCode != 201) {
       throw ApiException(_extractError(response, "Could not create food"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> getMyFoods(String token) async {
+    final response = await http.get(
+      Uri.parse("$apiBaseUrl/foods/mine"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load your custom foods"));
+    }
+
+    return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> updateFood(
+    String token,
+    String foodId, {
+    String? name,
+    double? caloriesPer100g,
+    double? proteinPer100g,
+    double? carbsPer100g,
+    double? fatPer100g,
+    String? photoBase64,
+  }) async {
+    final response = await http.patch(
+      Uri.parse("$apiBaseUrl/foods/$foodId"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({
+        "name": ?name,
+        "caloriesPer100g": ?caloriesPer100g,
+        "proteinPer100g": ?proteinPer100g,
+        "carbsPer100g": ?carbsPer100g,
+        "fatPer100g": ?fatPer100g,
+        "photoBase64": ?photoBase64,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not update this food"));
     }
 
     return jsonDecode(response.body) as Map<String, dynamic>;

@@ -10,6 +10,7 @@ import "../theme.dart";
 import "../constants.dart";
 import "welcome_screen.dart";
 import "add_food_screen.dart";
+import "my_custom_foods_screen.dart";
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -143,6 +144,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       MaterialPageRoute(builder: (_) => const AddFoodScreen()),
     );
     if (logged == true) _loadDashboard();
+  }
+
+  Future<void> _openMyCustomFoods() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MyCustomFoodsScreen()),
+    );
+    _loadDashboard();
   }
 
   Future<void> _openLogWeightDialog() async {
@@ -319,7 +327,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("MyCalorie"),
-        actions: [IconButton(onPressed: _handleLogout, icon: const Icon(Icons.logout))],
+        actions: [
+          IconButton(
+            onPressed: _openMyCustomFoods,
+            icon: const Icon(Icons.restaurant_menu),
+            tooltip: "My Custom Foods",
+          ),
+          IconButton(onPressed: _handleLogout, icon: const Icon(Icons.logout)),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

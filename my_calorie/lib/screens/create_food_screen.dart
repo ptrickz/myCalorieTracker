@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
+import "../widgets/food_photo_picker.dart";
 
 class CreateFoodScreen extends StatefulWidget {
   final String initialName;
@@ -19,6 +20,7 @@ class _CreateFoodScreenState extends State<CreateFoodScreen> {
   final _proteinController = TextEditingController();
   final _carbsController = TextEditingController();
   final _fatController = TextEditingController();
+  String? _photoBase64;
 
   bool _isSaving = false;
   String? _errorMessage;
@@ -48,6 +50,7 @@ class _CreateFoodScreenState extends State<CreateFoodScreen> {
         proteinPer100g: protein,
         carbsPer100g: carbs,
         fatPer100g: fat,
+        photoBase64: _photoBase64,
       );
       if (!mounted) return;
       Navigator.of(context).pop(food);
@@ -66,6 +69,11 @@ class _CreateFoodScreenState extends State<CreateFoodScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Name")),
+          const SizedBox(height: 12),
+          FoodPhotoPicker(
+            photoBase64: _photoBase64,
+            onChanged: (value) => setState(() => _photoBase64 = value),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _caloriesController,

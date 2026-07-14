@@ -82,6 +82,7 @@ model FoodItem {
   fatPer100g       Float
   barcode          String?    @unique
   source           FoodSource
+  photoBase64      String?
   createdByUserId  String?
   createdBy        User?      @relation(fields: [createdByUserId], references: [id])
   createdAt        DateTime   @default(now())

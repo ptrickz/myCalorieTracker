@@ -155,6 +155,10 @@ components:
         barcode:
           type: string
           nullable: true
+        photoBase64:
+          type: string
+          nullable: true
+          description: Raw base64-encoded image data (no data-URI prefix).
         source:
           $ref: "#/components/schemas/FoodSource"
         createdByUserId:
@@ -188,6 +192,25 @@ components:
           example: 9
         barcode:
           type: string
+        photoBase64:
+          type: string
+
+    FoodItemUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        caloriesPer100g:
+          type: number
+        proteinPer100g:
+          type: number
+        carbsPer100g:
+          type: number
+        fatPer100g:
+          type: number
+        photoBase64:
+          type: string
+          nullable: true
 
     LogEntry:
       type: object
@@ -444,6 +467,51 @@ paths:
                 $ref: "#/components/schemas/FoodItem"
         "400":
           description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /foods/mine:
+    get:
+      summary: List the logged-in user's own custom foods
+      responses:
+        "200":
+          description: Custom foods created by this user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FoodItem"
+
+  /foods/{id}:
+    patch:
+      summary: Edit a custom food's name, macros, and/or photo
+      description: >-
+        Only the food's creator may edit it. If any macro field changes, all
+        existing LogEntry rows for this food are recalculated using the new
+        per-100g values (fixing a data-entry mistake corrects history too).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FoodItemUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoodItem"
+        "404":
+          description: Not found, or not owned by this user
           content:
             application/json:
               schema:
