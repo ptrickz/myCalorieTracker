@@ -2,6 +2,7 @@ import "package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.da
 import "package:flutter/material.dart";
 import "../theme.dart";
 import "dashboard_screen.dart";
+import "add_food_screen.dart";
 import "scan_food_screen.dart";
 import "my_custom_foods_screen.dart";
 import "profile_screen.dart";
@@ -16,36 +17,59 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  static const _tabs = [
-    DashboardScreen(),
-    ScanFoodScreen(),
-    MyCustomFoodsScreen(),
-    ProfileScreen(),
-  ];
+  // Bumped whenever the user could have logged food elsewhere (the Add Food
+  // tab or the Scan FAB), forcing Dashboard to remount and reload next time
+  // it's shown instead of quietly going stale inside the IndexedStack.
+  int _dashboardRefreshKey = 0;
 
   static const _icons = [
     Icons.home_outlined,
-    Icons.camera_alt_outlined,
+    Icons.add_circle_outline,
     Icons.restaurant_menu_outlined,
     Icons.person_outline,
   ];
-  static const _activeIcons = [Icons.home, Icons.camera_alt, Icons.restaurant_menu, Icons.person];
-  static const _labels = ["Home", "Scan", "Foods", "Profile"];
+  static const _activeIcons = [Icons.home, Icons.add_circle, Icons.restaurant_menu, Icons.person];
+  static const _labels = ["Home", "Add Food", "Foods", "Profile"];
+
+  void _onDestinationSelected(int index) {
+    setState(() {
+      if (index == 0 && _index != 0) _dashboardRefreshKey++;
+      _index = index;
+    });
+  }
+
+  Future<void> _openScan() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ScanFoodScreen()));
+    if (!mounted) return;
+    setState(() => _dashboardRefreshKey++);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final tabs = [
+      DashboardScreen(key: ValueKey(_dashboardRefreshKey)),
+      const AddFoodScreen(),
+      const MyCustomFoodsScreen(),
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
-      body: IndexedStack(index: _index, children: _tabs),
+      body: IndexedStack(index: _index, children: tabs),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openScan,
+        child: const Icon(Icons.camera_alt),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: AnimatedBottomNavigationBar.builder(
         itemCount: _labels.length,
         activeIndex: _index,
-        gapLocation: GapLocation.none,
+        gapLocation: GapLocation.center,
         notchSmoothness: NotchSmoothness.softEdge,
         leftCornerRadius: 24,
         rightCornerRadius: 24,
         backgroundColor: AppColors.surface,
         splashColor: AppColors.accent.withValues(alpha: 0.25),
-        onTap: (index) => setState(() => _index = index),
+        onTap: _onDestinationSelected,
         tabBuilder: (index, isActive) {
           final color = isActive ? AppColors.accent : AppColors.textSecondary;
           return Column(

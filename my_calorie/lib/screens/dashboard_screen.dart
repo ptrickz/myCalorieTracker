@@ -9,7 +9,6 @@ import "../widgets/streak_card.dart";
 import "../theme.dart";
 import "../constants.dart";
 import "welcome_screen.dart";
-import "add_food_screen.dart";
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -162,13 +161,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       MaterialPageRoute(builder: (_) => const WelcomeScreen()),
       (route) => false,
     );
-  }
-
-  Future<void> _openAddFood() async {
-    final logged = await Navigator.of(
-      context,
-    ).push<bool>(MaterialPageRoute(builder: (_) => const AddFoodScreen()));
-    if (logged == true) _loadDashboard();
   }
 
   Future<void> _openLogWeightDialog() async {
@@ -569,10 +561,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openAddFood,
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }

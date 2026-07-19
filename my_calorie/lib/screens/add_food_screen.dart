@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../constants.dart";
+import "../widgets/app_toast.dart";
 import "../widgets/photo_viewer.dart";
 import "create_food_screen.dart";
 
@@ -96,7 +97,13 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         mealType: _mealType,
       );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      AppToast.show(context, "Logged!");
+      setState(() {
+        _selectedFood = null;
+        _servingController.text = "100";
+        _mealType = "BREAKFAST";
+      });
+      _loadFoods();
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {
