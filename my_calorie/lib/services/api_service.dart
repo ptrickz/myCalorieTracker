@@ -274,6 +274,25 @@ class ApiService {
     return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>> visionLog(
+    String token, {
+    required String imageBase64,
+    required String mediaType,
+    required String mode,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/vision-log"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({"image": imageBase64, "mediaType": mediaType, "mode": mode}),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not analyze this photo"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   Future<void> addWeightLog(String token, double weightKg) async {
     final response = await http.post(
       Uri.parse("$apiBaseUrl/weight-logs"),

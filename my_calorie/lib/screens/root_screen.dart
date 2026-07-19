@@ -3,7 +3,7 @@ import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "welcome_screen.dart";
 import "profile_setup_screen.dart";
-import "dashboard_screen.dart";
+import "home_shell.dart";
 
 // Central place that decides where to send the user: Welcome (no/invalid token),
 // ProfileSetup (logged in but hasn't entered TDEE inputs yet), or Dashboard.
@@ -34,7 +34,7 @@ class _RootScreenState extends State<RootScreen> {
     try {
       final profile = await _apiService.getProfile(token);
       final profileComplete = profile["profileComplete"] as bool;
-      _goTo(profileComplete ? const DashboardScreen() : const ProfileSetupScreen());
+      _goTo(profileComplete ? const HomeShell() : const ProfileSetupScreen());
     } catch (_) {
       await _authStorage.clearToken();
       _goTo(const WelcomeScreen());

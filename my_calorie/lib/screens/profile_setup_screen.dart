@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
-import "dashboard_screen.dart";
+import "home_shell.dart";
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -76,7 +76,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       // pushAndRemoveUntil, not pushReplacement — clears Welcome/Login out of
       // the back stack too, so Dashboard doesn't show a stray back button.
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(builder: (_) => const HomeShell()),
         (route) => false,
       );
     } catch (e) {

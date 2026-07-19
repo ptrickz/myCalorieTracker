@@ -28,10 +28,14 @@ ThemeData buildAppTheme() {
       onPrimary: Colors.black,
       secondary: AppColors.accent,
       onSecondary: Colors.black,
+      secondaryContainer: AppColors.accent,
+      onSecondaryContainer: Colors.black,
       tertiary: AppColors.accent,
       onTertiary: Colors.black,
       surface: AppColors.surface,
       onSurface: AppColors.textPrimary,
+      surfaceContainerHighest: AppColors.surfaceAlt,
+      outline: AppColors.border,
       error: AppColors.error,
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.accent),
@@ -96,6 +100,25 @@ ThemeData buildAppTheme() {
       ),
       checkColor: const WidgetStatePropertyAll(Colors.black),
       side: const BorderSide(color: AppColors.border),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: AppColors.surface,
+      indicatorColor: AppColors.accent.withValues(alpha: 0.18),
+      elevation: 0,
+      height: 68,
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return TextStyle(
+          fontSize: 12,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          color: selected ? AppColors.accent : AppColors.textSecondary,
+        );
+      }),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected) ? AppColors.accent : AppColors.textSecondary,
+        ),
+      ),
     ),
   );
 }
