@@ -183,6 +183,17 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  Future<void> deleteFood(String token, String foodId) async {
+    final response = await http.delete(
+      Uri.parse("$apiBaseUrl/foods/$foodId"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 204) {
+      throw ApiException(_extractError(response, "Could not delete this food"));
+    }
+  }
+
   Future<void> createLogEntry(
     String token, {
     required String foodItemId,

@@ -24,10 +24,10 @@ class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
 
   @override
-  State<WorkoutScreen> createState() => _WorkoutScreenState();
+  State<WorkoutScreen> createState() => WorkoutScreenState();
 }
 
-class _WorkoutScreenState extends State<WorkoutScreen> {
+class WorkoutScreenState extends State<WorkoutScreen> {
   final _apiService = ApiService();
   final _authStorage = AuthStorage();
 
@@ -92,6 +92,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       if (mounted) setState(() => _isStarting = false);
     }
   }
+
+  /// Called by HomeShell's Workout-tab FAB.
+  Future<void> startFreeSession() => _startFreeSession();
 
   Future<void> _startFreeSession() async {
     final otherController = TextEditingController();
