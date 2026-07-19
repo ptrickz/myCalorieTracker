@@ -38,9 +38,40 @@
     html, body {
       background-color: #0D0D0D;
     }
+
+    #app-loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #0D0D0D;
+      z-index: 9999;
+    }
+
+    #app-loading .spinner {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 3px solid #2A2A2A;
+      border-top-color: #C6FF3D;
+      animation: app-loading-spin 0.8s linear infinite;
+    }
+
+    @keyframes app-loading-spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
+  <!--
+    Shown while the Flutter engine boots (initial load, and the brief reboot
+    Safari triggers on an edge-swipe-back gesture with no in-app history to
+    return to) — replaces a bare black screen with visible progress.
+    Removed automatically once Flutter renders its first frame.
+  -->
+  <div id="app-loading"><div class="spinner"></div></div>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
@@ -50,5 +81,11 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.addEventListener("flutter-first-frame", function () {
+      var loader = document.getElementById("app-loading");
+      if (loader) loader.remove();
+    });
+  </script>
 </body>
 </html>
