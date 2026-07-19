@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:my_calorie/widgets/background_image_body.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../widgets/app_logo.dart";
@@ -139,7 +140,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _openProfile() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
     _loadDashboard();
   }
 
@@ -274,112 +277,115 @@ class _DashboardScreenState extends State<DashboardScreen> {
             )
           : RefreshIndicator(
               onRefresh: _loadDashboard,
-              child: ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  NutrientHeroCard(
-                    icon: Icons.local_fire_department,
-                    consumed: consumed,
-                    target: _targetCalories,
-                    titleBuilder: (remaining) => "${remaining.round()} kcal",
-                    subtitleBuilder: (c, t) =>
-                        "${c.round()} eaten of ${t.round()} kcal goal",
-                    useRingProgress: true,
-                  ),
-                  const SizedBox(height: 16),
-                  NutrientHeroCard(
-                    icon: Icons.fitness_center,
-                    consumed: proteinConsumed,
-                    target: _proteinTargetG,
-                    titleBuilder: (remaining) =>
-                        "${remaining.round()}g protein left",
-                    subtitleBuilder: (c, t) =>
-                        "${c.round()}g eaten of ${t.round()}g goal",
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: MacroStatCard(
-                          label: "Carbs",
-                          grams: _totals["carbs"] as num,
-                          dotColor: AppColors.carbsDot,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: MacroStatCard(
-                          label: "Fat",
-                          grams: _totals["fat"] as num,
-                          dotColor: AppColors.fatDot,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        onPressed: _isLoadingDay ? null : _goToPreviousDay,
-                        icon: const Icon(Icons.chevron_left),
-                      ),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Text(
-                              _dateLabel(_viewedDate),
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            Text(
-                              "${(_dayTotals["calories"] as num).round()} kcal · ${(_dayTotals["protein"] as num).round()}g protein",
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _isLoadingDay || _isViewingToday
-                            ? null
-                            : _goToNextDay,
-                        icon: const Icon(Icons.chevron_right),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (_isLoadingDay)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (_entries.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        _isViewingToday
-                            ? "Nothing logged yet today."
-                            : "Nothing logged this day.",
-                      ),
-                    )
-                  else
-                    ..._entries.map(
-                      (entry) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(entry["foodItem"]["name"] as String),
-                        subtitle: Text(
-                          "${entry["mealType"]} · ${(entry["servingGrams"] as num).round()}g",
-                        ),
-                        trailing: Text(
-                          "${(entry["calories"] as num).round()} kcal",
-                        ),
-                        onTap: () => _openEditLogEntryDialog(entry),
-                      ),
+              child: BackgroundImageBody(
+                imagePath: "assets/img/home.png",
+                child: ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    NutrientHeroCard(
+                      icon: Icons.local_fire_department,
+                      consumed: consumed,
+                      target: _targetCalories,
+                      titleBuilder: (remaining) => "${remaining.round()} kcal",
+                      subtitleBuilder: (c, t) =>
+                          "${c.round()} eaten of ${t.round()} kcal goal",
+                      useRingProgress: true,
                     ),
-                ],
+                    const SizedBox(height: 16),
+                    NutrientHeroCard(
+                      icon: Icons.fitness_center,
+                      consumed: proteinConsumed,
+                      target: _proteinTargetG,
+                      titleBuilder: (remaining) =>
+                          "${remaining.round()}g protein left",
+                      subtitleBuilder: (c, t) =>
+                          "${c.round()}g eaten of ${t.round()}g goal",
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: MacroStatCard(
+                            label: "Carbs",
+                            grams: _totals["carbs"] as num,
+                            dotColor: AppColors.carbsDot,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: MacroStatCard(
+                            label: "Fat",
+                            grams: _totals["fat"] as num,
+                            dotColor: AppColors.fatDot,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          onPressed: _isLoadingDay ? null : _goToPreviousDay,
+                          icon: const Icon(Icons.chevron_left),
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                _dateLabel(_viewedDate),
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Text(
+                                "${(_dayTotals["calories"] as num).round()} kcal · ${(_dayTotals["protein"] as num).round()}g protein",
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _isLoadingDay || _isViewingToday
+                              ? null
+                              : _goToNextDay,
+                          icon: const Icon(Icons.chevron_right),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (_isLoadingDay)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_entries.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          _isViewingToday
+                              ? "Nothing logged yet today."
+                              : "Nothing logged this day.",
+                        ),
+                      )
+                    else
+                      ..._entries.map(
+                        (entry) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(entry["foodItem"]["name"] as String),
+                          subtitle: Text(
+                            "${entry["mealType"]} · ${(entry["servingGrams"] as num).round()}g",
+                          ),
+                          trailing: Text(
+                            "${(entry["calories"] as num).round()} kcal",
+                          ),
+                          onTap: () => _openEditLogEntryDialog(entry),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
     );

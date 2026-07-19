@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../widgets/app_toast.dart";
+import "../widgets/background_image_body.dart";
 import "../widgets/seven_day_trend_card.dart";
 import "../widgets/streak_card.dart";
 import "../widgets/weight_trend_card.dart";
@@ -111,7 +112,9 @@ class _StatusScreenState extends State<StatusScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Status")),
-      body: _isLoading
+      body: BackgroundImageBody(
+        imagePath: "assets/img/analytics.png",
+        child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
               ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
@@ -138,6 +141,7 @@ class _StatusScreenState extends State<StatusScreen> {
                     ],
                   ),
                 ),
+      ),
     );
   }
 }

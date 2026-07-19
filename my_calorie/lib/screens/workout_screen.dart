@@ -3,6 +3,7 @@ import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../theme.dart";
 import "../widgets/app_toast.dart";
+import "../widgets/background_image_body.dart";
 import "workout_session_screen.dart";
 
 const _restDayNotes = {
@@ -166,7 +167,9 @@ class WorkoutScreenState extends State<WorkoutScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text("Workouts")),
-      body: _isLoading
+      body: BackgroundImageBody(
+        imagePath: "assets/img/workouts.png",
+        child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
               ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
@@ -212,6 +215,7 @@ class WorkoutScreenState extends State<WorkoutScreen> {
                     ],
                   ),
                 ),
+      ),
     );
   }
 

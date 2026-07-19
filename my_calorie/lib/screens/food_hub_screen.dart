@@ -5,6 +5,7 @@ import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../constants.dart";
 import "../widgets/app_toast.dart";
+import "../widgets/background_image_body.dart";
 import "../widgets/food_photo_picker.dart";
 import "../widgets/photo_viewer.dart";
 
@@ -66,7 +67,10 @@ class FoodHubScreenState extends State<FoodHubScreen> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () => _loadFoods(value));
+    _debounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _loadFoods(value),
+    );
   }
 
   Future<void> _loadFoods([String? query]) async {
@@ -140,10 +144,18 @@ class FoodHubScreenState extends State<FoodHubScreen> {
 
   Future<void> _openEditDialog(Map<String, dynamic> food) async {
     final nameController = TextEditingController(text: food["name"] as String);
-    final caloriesController = TextEditingController(text: (food["caloriesPer100g"] as num).toString());
-    final proteinController = TextEditingController(text: (food["proteinPer100g"] as num).toString());
-    final carbsController = TextEditingController(text: (food["carbsPer100g"] as num).toString());
-    final fatController = TextEditingController(text: (food["fatPer100g"] as num).toString());
+    final caloriesController = TextEditingController(
+      text: (food["caloriesPer100g"] as num).toString(),
+    );
+    final proteinController = TextEditingController(
+      text: (food["proteinPer100g"] as num).toString(),
+    );
+    final carbsController = TextEditingController(
+      text: (food["carbsPer100g"] as num).toString(),
+    );
+    final fatController = TextEditingController(
+      text: (food["fatPer100g"] as num).toString(),
+    );
     var photoBase64 = food["photoBase64"] as String?;
 
     final saved = await showDialog<bool>(
@@ -157,33 +169,45 @@ class FoodHubScreenState extends State<FoodHubScreen> {
               children: [
                 FoodPhotoPicker(
                   photoBase64: photoBase64,
-                  onChanged: (value) => setDialogState(() => photoBase64 = value),
+                  onChanged: (value) =>
+                      setDialogState(() => photoBase64 = value),
                 ),
                 const SizedBox(height: 12),
-                TextField(controller: nameController, decoration: const InputDecoration(labelText: "Name")),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: "Name"),
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: caloriesController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Calories per 100g"),
+                  decoration: const InputDecoration(
+                    labelText: "Calories per 100g",
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: proteinController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Protein per 100g (g)"),
+                  decoration: const InputDecoration(
+                    labelText: "Protein per 100g (g)",
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: carbsController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Carbs per 100g (g)"),
+                  decoration: const InputDecoration(
+                    labelText: "Carbs per 100g (g)",
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: fatController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Fat per 100g (g)"),
+                  decoration: const InputDecoration(
+                    labelText: "Fat per 100g (g)",
+                  ),
                 ),
                 const SizedBox(height: 8),
                 const Text(
@@ -194,8 +218,14 @@ class FoodHubScreenState extends State<FoodHubScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
-            TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Save")),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text("Save"),
+            ),
           ],
         ),
       ),
@@ -208,7 +238,11 @@ class FoodHubScreenState extends State<FoodHubScreen> {
     final carbs = double.tryParse(carbsController.text);
     final fat = double.tryParse(fatController.text);
 
-    if (nameController.text.trim().isEmpty || calories == null || protein == null || carbs == null || fat == null) {
+    if (nameController.text.trim().isEmpty ||
+        calories == null ||
+        protein == null ||
+        carbs == null ||
+        fat == null) {
       if (!mounted) return;
       AppToast.show(context, "Fill in a name and all four macro fields");
       return;
@@ -242,8 +276,14 @@ class FoodHubScreenState extends State<FoodHubScreen> {
         title: const Text("Delete food?"),
         content: Text('Delete "${food["name"]}"? This can\'t be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Delete")),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Delete"),
+          ),
         ],
       ),
     );
@@ -266,32 +306,37 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Food")),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SegmentedButton<FoodHubTab>(
-              segments: const [
-                ButtonSegment(
-                  value: FoodHubTab.logFood,
-                  label: Text("Log Food"),
-                  icon: Icon(Icons.search),
-                ),
-                ButtonSegment(
-                  value: FoodHubTab.customFood,
-                  label: Text("Custom Food"),
-                  icon: Icon(Icons.restaurant_menu),
-                ),
-              ],
-              selected: {_tab},
-              onSelectionChanged: (selection) => _switchTab(selection.first),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _tab == FoodHubTab.logFood ? _buildLogFoodBody() : _buildCustomFoodBody(),
-            ),
-          ],
+      body: BackgroundImageBody(
+        imagePath: "assets/img/food.png",
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SegmentedButton<FoodHubTab>(
+                segments: const [
+                  ButtonSegment(
+                    value: FoodHubTab.logFood,
+                    label: Text("Log Food"),
+                    icon: Icon(Icons.search),
+                  ),
+                  ButtonSegment(
+                    value: FoodHubTab.customFood,
+                    label: Text("Custom Food"),
+                    icon: Icon(Icons.restaurant_menu),
+                  ),
+                ],
+                selected: {_tab},
+                onSelectionChanged: (selection) => _switchTab(selection.first),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _tab == FoodHubTab.logFood
+                    ? _buildLogFoodBody()
+                    : _buildCustomFoodBody(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -331,7 +376,8 @@ class FoodHubScreenState extends State<FoodHubScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        if (_errorMessage != null) Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+        if (_errorMessage != null)
+          Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
         if (_isSearching) const LinearProgressIndicator(),
         Expanded(
           child: ListView(
@@ -342,7 +388,11 @@ class FoodHubScreenState extends State<FoodHubScreen> {
                 const SizedBox(height: 8),
               ],
               if (others.isNotEmpty) ...[
-                if (isBrowsingDefault) Text("All Foods", style: Theme.of(context).textTheme.labelLarge),
+                if (isBrowsingDefault)
+                  Text(
+                    "All Foods",
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
                 ...others.map(_buildFoodTile),
               ],
               if (!_isSearching && _results.isEmpty)
@@ -364,7 +414,9 @@ class FoodHubScreenState extends State<FoodHubScreen> {
           ? const CircleAvatar(child: Icon(Icons.restaurant))
           : GestureDetector(
               onTap: () => showFoodPhotoViewer(context, photoBase64),
-              child: CircleAvatar(backgroundImage: MemoryImage(base64Decode(photoBase64))),
+              child: CircleAvatar(
+                backgroundImage: MemoryImage(base64Decode(photoBase64)),
+              ),
             ),
       title: Text(food["name"] as String),
       subtitle: Text("${(food["caloriesPer100g"] as num).round()} kcal / 100g"),
@@ -376,7 +428,10 @@ class FoodHubScreenState extends State<FoodHubScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(_selectedFood!["name"] as String, style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          _selectedFood!["name"] as String,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         const SizedBox(height: 16),
         TextField(
           controller: _servingController,
@@ -396,12 +451,19 @@ class FoodHubScreenState extends State<FoodHubScreen> {
         if (_errorMessage != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ElevatedButton(
           onPressed: _isLogging ? null : _handleLogIt,
           child: _isLogging
-              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text("Log it"),
         ),
         TextButton(
@@ -415,12 +477,20 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   // --- Custom Food sub-tab ---
 
   Widget _buildCustomFoodBody() {
-    if (_isLoadingCustom) return const Center(child: CircularProgressIndicator());
+    if (_isLoadingCustom)
+      return const Center(child: CircularProgressIndicator());
     if (_customErrorMessage != null) {
-      return Center(child: Text(_customErrorMessage!, style: const TextStyle(color: Colors.red)));
+      return Center(
+        child: Text(
+          _customErrorMessage!,
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
     }
     if (_customFoods.isEmpty) {
-      return const Center(child: Text("You haven't added any custom foods yet."));
+      return const Center(
+        child: Text("You haven't added any custom foods yet."),
+      );
     }
 
     return RefreshIndicator(
@@ -436,7 +506,9 @@ class FoodHubScreenState extends State<FoodHubScreen> {
                 ? const CircleAvatar(child: Icon(Icons.restaurant))
                 : GestureDetector(
                     onTap: () => showFoodPhotoViewer(context, photoBase64),
-                    child: CircleAvatar(backgroundImage: MemoryImage(base64Decode(photoBase64))),
+                    child: CircleAvatar(
+                      backgroundImage: MemoryImage(base64Decode(photoBase64)),
+                    ),
                   ),
             title: Text(food["name"] as String),
             subtitle: Text(
