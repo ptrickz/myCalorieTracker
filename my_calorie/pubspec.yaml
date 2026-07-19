@@ -39,6 +39,7 @@ dependencies:
   fl_chart: ^1.2.0
   image_picker: ^1.2.0
   crop_your_image: ^1.0.3
+  animated_bottom_navigation_bar: ^1.4.0
 
 dev_dependencies:
   flutter_test:
