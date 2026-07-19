@@ -15,7 +15,7 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { name, formCue, videoUrl } = req.body;
+  const { name, formCue, videoUrl, imageUrl } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: "name is required" });
@@ -26,6 +26,7 @@ router.post("/", async (req, res) => {
       name,
       formCue: formCue || null,
       videoUrl: videoUrl || null,
+      imageUrl: imageUrl || null,
       createdByUserId: req.userId,
     },
   });

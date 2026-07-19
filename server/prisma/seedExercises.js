@@ -98,8 +98,16 @@ const EXERCISES = [
   },
 ];
 
+// YouTube's standard thumbnail CDN — always available for any valid video ID,
+// so this is a real, working image rather than a guessed URL.
+function thumbnailFor(videoUrl) {
+  const match = videoUrl.match(/[?&]v=([^&]+)/);
+  return match ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : null;
+}
+
 async function main() {
-  for (const exercise of EXERCISES) {
+  for (const base of EXERCISES) {
+    const exercise = { ...base, imageUrl: thumbnailFor(base.videoUrl) };
     const existing = await prisma.exercise.findFirst({
       where: { name: exercise.name, createdByUserId: null },
     });

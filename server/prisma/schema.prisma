@@ -134,6 +134,7 @@ model Exercise {
   name            String
   formCue         String?
   videoUrl        String?
+  imageUrl        String?
   // Which day of the seeded routine this belongs to ("Monday" / "Wednesday" /
   // "Friday"), or null for custom/freeform exercises not tied to a fixed day.
   dayTag          String?

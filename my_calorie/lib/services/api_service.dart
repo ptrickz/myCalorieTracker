@@ -332,6 +332,131 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getExercises(String token, {String? dayTag}) async {
+    final uri = dayTag == null
+        ? Uri.parse("$apiBaseUrl/exercises")
+        : Uri.parse("$apiBaseUrl/exercises?dayTag=${Uri.encodeQueryComponent(dayTag)}");
+    final response = await http.get(uri, headers: _authHeaders(token));
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load exercises"));
+    }
+
+    return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> createExercise(
+    String token, {
+    required String name,
+    String? formCue,
+    String? videoUrl,
+    String? imageUrl,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/exercises"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({"name": name, "formCue": ?formCue, "videoUrl": ?videoUrl, "imageUrl": ?imageUrl}),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(_extractError(response, "Could not create exercise"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getExerciseProgression(String token, String exerciseId) async {
+    final response = await http.get(
+      Uri.parse("$apiBaseUrl/exercises/$exerciseId/progression"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load progression"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> getWorkoutLogs(String token, {int limit = 20}) async {
+    final response = await http.get(
+      Uri.parse("$apiBaseUrl/workout-logs?limit=$limit"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load workout history"));
+    }
+
+    return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> createWorkoutLog(String token, {required String venue, String? notes}) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/workout-logs"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({"venue": venue, "notes": ?notes}),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(_extractError(response, "Could not start workout"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getWorkoutLog(String token, String workoutLogId) async {
+    final response = await http.get(
+      Uri.parse("$apiBaseUrl/workout-logs/$workoutLogId"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load workout"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> addWorkoutSet(
+    String token,
+    String workoutLogId, {
+    required String exerciseId,
+    required int setNumber,
+    int? reps,
+    double? weightKg,
+    int? durationSeconds,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/workout-logs/$workoutLogId/sets"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({
+        "exerciseId": exerciseId,
+        "setNumber": setNumber,
+        "reps": ?reps,
+        "weightKg": ?weightKg,
+        "durationSeconds": ?durationSeconds,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(_extractError(response, "Could not log this set"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<void> deleteWorkoutLog(String token, String workoutLogId) async {
+    final response = await http.delete(
+      Uri.parse("$apiBaseUrl/workout-logs/$workoutLogId"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 204) {
+      throw ApiException(_extractError(response, "Could not delete this workout"));
+    }
+  }
+
   Map<String, String> _authHeaders(String token, {bool withJson = false}) {
     return {
       "Authorization": "Bearer $token",

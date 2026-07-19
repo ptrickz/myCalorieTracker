@@ -415,6 +415,9 @@ components:
         videoUrl:
           type: string
           nullable: true
+        imageUrl:
+          type: string
+          nullable: true
         dayTag:
           type: string
           nullable: true
@@ -443,6 +446,8 @@ components:
         formCue:
           type: string
         videoUrl:
+          type: string
+        imageUrl:
           type: string
 
     ProgressionSuggestion:
