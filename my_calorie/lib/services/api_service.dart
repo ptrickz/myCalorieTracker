@@ -259,6 +259,19 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getLogsRange(String token, {int days = 7}) async {
+    final response = await http.get(
+      Uri.parse("$apiBaseUrl/logs/range?days=$days"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load weekly trend"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> getStreak(String token) async {
     final response = await http.get(
       Uri.parse("$apiBaseUrl/logs/streak"),

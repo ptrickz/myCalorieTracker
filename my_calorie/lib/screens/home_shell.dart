@@ -5,6 +5,7 @@ import "dashboard_screen.dart";
 import "create_food_screen.dart";
 import "food_hub_screen.dart";
 import "scan_food_screen.dart";
+import "status_screen.dart";
 import "workout_screen.dart";
 
 class HomeShell extends StatefulWidget {
@@ -98,8 +99,7 @@ class _HomeShellState extends State<HomeShell> {
       DashboardScreen(key: ValueKey(_dashboardRefreshKey)),
       FoodHubScreen(key: _foodHubKey, onSubTabChanged: (tab) => _foodHubTab.value = tab),
       WorkoutScreen(key: _workoutKey),
-      // Placeholder until the Status screen lands.
-      const Center(child: Text("Status — coming soon")),
+      const StatusScreen(),
     ];
 
     return Scaffold(
