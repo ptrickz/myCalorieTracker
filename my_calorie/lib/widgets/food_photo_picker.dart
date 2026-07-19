@@ -1,6 +1,8 @@
 import "dart:convert";
+import "dart:typed_data";
 import "package:flutter/material.dart";
 import "package:image_picker/image_picker.dart";
+import "../screens/crop_photo_screen.dart";
 import "../theme.dart";
 
 class FoodPhotoPicker extends StatelessWidget {
@@ -9,17 +11,24 @@ class FoodPhotoPicker extends StatelessWidget {
 
   const FoodPhotoPicker({super.key, required this.photoBase64, required this.onChanged});
 
-  Future<void> _pickPhoto() async {
+  Future<void> _pickPhoto(BuildContext context) async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      maxWidth: 640,
-      maxHeight: 640,
-      imageQuality: 70,
+      maxWidth: 1280,
+      maxHeight: 1280,
+      imageQuality: 85,
     );
     if (picked == null) return;
 
     final bytes = await picked.readAsBytes();
-    onChanged(base64Encode(bytes));
+    if (!context.mounted) return;
+
+    final cropped = await Navigator.of(context).push<Uint8List>(
+      MaterialPageRoute(builder: (_) => CropPhotoScreen(imageBytes: bytes)),
+    );
+    if (cropped == null) return;
+
+    onChanged(base64Encode(cropped));
   }
 
   @override
@@ -30,7 +39,7 @@ class FoodPhotoPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
-          onTap: _pickPhoto,
+          onTap: () => _pickPhoto(context),
           child: Container(
             width: 72,
             height: 72,
@@ -51,7 +60,7 @@ class FoodPhotoPicker extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               TextButton(
-                onPressed: _pickPhoto,
+                onPressed: () => _pickPhoto(context),
                 child: Text(bytes == null ? "Add photo" : "Change photo"),
               ),
               if (bytes != null)
