@@ -60,30 +60,40 @@ class _HomeShellState extends State<HomeShell> {
         child: const Icon(Icons.camera_alt),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: AnimatedBottomNavigationBar.builder(
-        itemCount: _labels.length,
-        activeIndex: _index,
-        gapLocation: GapLocation.center,
-        notchSmoothness: NotchSmoothness.softEdge,
-        leftCornerRadius: 24,
-        rightCornerRadius: 24,
-        backgroundColor: AppColors.surface,
-        splashColor: AppColors.accent.withValues(alpha: 0.25),
-        onTap: _onDestinationSelected,
-        tabBuilder: (index, isActive) {
-          final color = isActive ? AppColors.accent : AppColors.textSecondary;
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(isActive ? _activeIcons[index] : _icons[index], size: 24, color: color),
-              const SizedBox(height: 4),
-              Text(
-                _labels[index],
-                style: TextStyle(fontSize: 11, color: color, fontWeight: isActive ? FontWeight.w600 : FontWeight.w400),
-              ),
-            ],
-          );
-        },
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 24, offset: const Offset(0, -6)),
+            BoxShadow(color: AppColors.accent.withValues(alpha: 0.06), blurRadius: 40, offset: const Offset(0, -10)),
+          ],
+        ),
+        child: AnimatedBottomNavigationBar.builder(
+          itemCount: _labels.length,
+          activeIndex: _index,
+          gapLocation: GapLocation.center,
+          notchSmoothness: NotchSmoothness.softEdge,
+          leftCornerRadius: 24,
+          rightCornerRadius: 24,
+          height: 78,
+          elevation: 0,
+          backgroundColor: AppColors.surface,
+          splashColor: AppColors.accent.withValues(alpha: 0.25),
+          onTap: _onDestinationSelected,
+          tabBuilder: (index, isActive) {
+            final color = isActive ? AppColors.accent : AppColors.textSecondary;
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(isActive ? _activeIcons[index] : _icons[index], size: 24, color: color),
+                const SizedBox(height: 4),
+                Text(
+                  _labels[index],
+                  style: TextStyle(fontSize: 11, color: color, fontWeight: isActive ? FontWeight.w600 : FontWeight.w400),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
