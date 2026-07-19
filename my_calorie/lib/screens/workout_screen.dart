@@ -57,7 +57,7 @@ class WorkoutScreenState extends State<WorkoutScreen> {
       final exercises = dayTag == null
           ? <Map<String, dynamic>>[]
           : await _apiService.getExercises(token!, dayTag: dayTag);
-      final logs = await _apiService.getWorkoutLogs(token!, limit: 5);
+      final logs = await _apiService.getWorkoutLogs(token!, limit: 100);
       if (!mounted) return;
       setState(() {
         _todaysExercises = exercises;
@@ -200,7 +200,7 @@ class WorkoutScreenState extends State<WorkoutScreen> {
                         child: const Text("Log a different session (gym, sport, ...)"),
                       ),
                       const SizedBox(height: 24),
-                      Text("Recent sessions", style: Theme.of(context).textTheme.titleMedium),
+                      Text("Session history", style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       if (_recentLogs.isEmpty)
                         const Padding(
@@ -208,7 +208,7 @@ class WorkoutScreenState extends State<WorkoutScreen> {
                           child: Text("No sessions logged yet."),
                         )
                       else
-                        ..._recentLogs.map(_buildRecentLogTile),
+                        ..._buildWeekGroups(),
                     ],
                   ),
                 ),
@@ -235,19 +235,81 @@ class WorkoutScreenState extends State<WorkoutScreen> {
     );
   }
 
-  Widget _buildRecentLogTile(Map<String, dynamic> log) {
+  static const _monthNames = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+  String _formatShortDate(DateTime date) => "${_monthNames[date.month - 1]} ${date.day}";
+
+  /// Sessions grouped by calendar week (Monday-start), newest week first.
+  List<Widget> _buildWeekGroups() {
+    final groups = <DateTime, List<Map<String, dynamic>>>{};
+    for (final log in _recentLogs) {
+      final loggedAt = DateTime.parse(log["loggedAt"] as String).toLocal();
+      final day = DateTime(loggedAt.year, loggedAt.month, loggedAt.day);
+      final weekStart = day.subtract(Duration(days: day.weekday - DateTime.monday));
+      groups.putIfAbsent(weekStart, () => []).add(log);
+    }
+
+    final sortedWeeks = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+
+    return [
+      for (final weekStart in sortedWeeks) ...[
+        Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 4),
+          child: Text(
+            "${_formatShortDate(weekStart)} - ${_formatShortDate(weekStart.add(const Duration(days: 6)))}",
+            style: const TextStyle(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        ...groups[weekStart]!.map(_buildSessionTile),
+      ],
+    ];
+  }
+
+  Widget _buildSessionTile(Map<String, dynamic> log) {
     final sets = (log["sets"] as List).cast<Map<String, dynamic>>();
     final exerciseNames = sets.map((s) => (s["exercise"] as Map<String, dynamic>)["name"] as String).toSet();
-    final loggedAt = DateTime.parse(log["loggedAt"] as String);
+    final loggedAt = DateTime.parse(log["loggedAt"] as String).toLocal();
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: Text(log["venue"] as String),
-      subtitle: Text(
-        exerciseNames.isEmpty
-            ? "No sets logged"
-            : "${exerciseNames.join(", ")} · ${loggedAt.toLocal().toString().substring(0, 16)}",
+      title: Text("${log["venue"]} · ${_formatShortDate(loggedAt)}"),
+      subtitle: Text(exerciseNames.isEmpty ? "No sets logged" : exerciseNames.join(", ")),
+      trailing: IconButton(
+        icon: const Icon(Icons.delete_outline),
+        tooltip: "Delete session",
+        onPressed: () => _confirmDeleteSession(log),
       ),
     );
+  }
+
+  Future<void> _confirmDeleteSession(Map<String, dynamic> log) async {
+    final loggedAt = DateTime.parse(log["loggedAt"] as String).toLocal();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete session?"),
+        content: Text('Delete the ${log["venue"]} session from ${_formatShortDate(loggedAt)}? This can\'t be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Delete")),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final token = await _authStorage.readToken();
+      await _apiService.deleteWorkoutLog(token!, log["id"] as String);
+      if (!mounted) return;
+      AppToast.show(context, "Session deleted");
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
+    }
   }
 }
