@@ -35,9 +35,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _activityLevel;
   String? _goalType;
 
+  bool _isEditing = false;
   bool _isLoading = true;
   bool _isSaving = false;
   String? _errorMessage;
+
+  // Snapshot taken when entering edit mode, restored on cancel.
+  DateTime? _backupDateOfBirth;
+  String? _backupSex;
+  String? _backupActivityLevel;
+  String? _backupGoalType;
+  String _backupHeight = "";
 
   @override
   void initState() {
@@ -69,6 +77,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _startEditing() {
+    _backupDateOfBirth = _dateOfBirth;
+    _backupSex = _sex;
+    _backupActivityLevel = _activityLevel;
+    _backupGoalType = _goalType;
+    _backupHeight = _heightController.text;
+    setState(() => _isEditing = true);
+  }
+
+  void _cancelEditing() {
+    setState(() {
+      _dateOfBirth = _backupDateOfBirth;
+      _sex = _backupSex;
+      _activityLevel = _backupActivityLevel;
+      _goalType = _backupGoalType;
+      _heightController.text = _backupHeight;
+      _errorMessage = null;
+      _isEditing = false;
+    });
   }
 
   Future<void> _pickDateOfBirth() async {
@@ -103,6 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       if (!mounted) return;
       AppToast.show(context, "Profile updated");
+      setState(() => _isEditing = false);
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {
@@ -113,73 +143,122 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Profile")),
+      appBar: AppBar(
+        title: const Text("Profile"),
+        actions: [
+          if (!_isLoading && !_isEditing)
+            IconButton(onPressed: _startEditing, icon: const Icon(Icons.edit), tooltip: "Edit"),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                if (_email != null) ...[
-                  Text(_email!, style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 24),
-                ],
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(_dateOfBirth == null
-                      ? "Date of birth"
-                      : "Date of birth: ${_dateOfBirth!.toIso8601String().substring(0, 10)}"),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: _pickDateOfBirth,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _sex,
-                  decoration: const InputDecoration(labelText: "Sex"),
-                  items: const [
-                    DropdownMenuItem(value: "MALE", child: Text("Male")),
-                    DropdownMenuItem(value: "FEMALE", child: Text("Female")),
-                  ],
-                  onChanged: (value) => setState(() => _sex = value),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _heightController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Height (cm)"),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _activityLevel,
-                  decoration: const InputDecoration(labelText: "Activity level"),
-                  items: _activityLevels.entries
-                      .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-                      .toList(),
-                  onChanged: (value) => setState(() => _activityLevel = value),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _goalType,
-                  decoration: const InputDecoration(labelText: "Goal"),
-                  items: _goalTypes.entries
-                      .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-                      .toList(),
-                  onChanged: (value) => setState(() => _goalType = value),
-                ),
-                const SizedBox(height: 24),
-                if (_errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-                  ),
-                ElevatedButton(
-                  onPressed: (_canSave && !_isSaving) ? _handleSave : null,
-                  child: _isSaving
-                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text("Save"),
-                ),
-              ],
-            ),
+          : _isEditing
+              ? _buildEditView()
+              : _buildReadOnlyView(),
+    );
+  }
+
+  Widget _buildReadOnlyView() {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        if (_email != null) ...[
+          Text(_email!, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 24),
+        ],
+        _buildInfoRow(
+          "Date of birth",
+          _dateOfBirth == null ? "Not set" : _dateOfBirth!.toIso8601String().substring(0, 10),
+        ),
+        _buildInfoRow("Sex", _sex == null ? "Not set" : (_sex == "MALE" ? "Male" : "Female")),
+        _buildInfoRow(
+          "Height",
+          _heightController.text.isEmpty ? "Not set" : "${_heightController.text} cm",
+        ),
+        _buildInfoRow("Activity level", _activityLevel == null ? "Not set" : _activityLevels[_activityLevel]!),
+        _buildInfoRow("Goal", _goalType == null ? "Not set" : _goalTypes[_goalType]!),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 4),
+          Text(value, style: Theme.of(context).textTheme.bodyLarge),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditView() {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(_dateOfBirth == null
+              ? "Date of birth"
+              : "Date of birth: ${_dateOfBirth!.toIso8601String().substring(0, 10)}"),
+          trailing: const Icon(Icons.calendar_today),
+          onTap: _pickDateOfBirth,
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: _sex,
+          decoration: const InputDecoration(labelText: "Sex"),
+          items: const [
+            DropdownMenuItem(value: "MALE", child: Text("Male")),
+            DropdownMenuItem(value: "FEMALE", child: Text("Female")),
+          ],
+          onChanged: (value) => setState(() => _sex = value),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _heightController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: "Height (cm)"),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: _activityLevel,
+          decoration: const InputDecoration(labelText: "Activity level"),
+          items: _activityLevels.entries
+              .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+              .toList(),
+          onChanged: (value) => setState(() => _activityLevel = value),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: _goalType,
+          decoration: const InputDecoration(labelText: "Goal"),
+          items: _goalTypes.entries
+              .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+              .toList(),
+          onChanged: (value) => setState(() => _goalType = value),
+        ),
+        const SizedBox(height: 24),
+        if (_errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+          ),
+        ElevatedButton(
+          onPressed: (_canSave && !_isSaving) ? _handleSave : null,
+          child: _isSaving
+              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text("Save"),
+        ),
+        TextButton(
+          onPressed: _isSaving ? null : _cancelEditing,
+          child: const Text("Cancel"),
+        ),
+      ],
     );
   }
 }

@@ -5,7 +5,7 @@ import "dashboard_screen.dart";
 import "add_food_screen.dart";
 import "scan_food_screen.dart";
 import "my_custom_foods_screen.dart";
-import "profile_screen.dart";
+import "workout_screen.dart";
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -26,10 +26,10 @@ class _HomeShellState extends State<HomeShell> {
     Icons.home_outlined,
     Icons.add_circle_outline,
     Icons.restaurant_menu_outlined,
-    Icons.person_outline,
+    Icons.fitness_center_outlined,
   ];
-  static const _activeIcons = [Icons.home, Icons.add_circle, Icons.restaurant_menu, Icons.person];
-  static const _labels = ["Home", "Add Food", "Foods", "Profile"];
+  static const _activeIcons = [Icons.home, Icons.add_circle, Icons.restaurant_menu, Icons.fitness_center];
+  static const _labels = ["Home", "Add Food", "Foods", "Workout"];
 
   void _onDestinationSelected(int index) {
     setState(() {
@@ -50,7 +50,7 @@ class _HomeShellState extends State<HomeShell> {
       DashboardScreen(key: ValueKey(_dashboardRefreshKey)),
       const AddFoodScreen(),
       const MyCustomFoodsScreen(),
-      const ProfileScreen(),
+      const WorkoutScreen(),
     ];
 
     return Scaffold(

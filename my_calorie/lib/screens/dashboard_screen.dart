@@ -9,6 +9,7 @@ import "../widgets/streak_card.dart";
 import "../theme.dart";
 import "../constants.dart";
 import "welcome_screen.dart";
+import "profile_screen.dart";
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -153,6 +154,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _handleLogout() async {
     await _authStorage.clearToken();
     _goToWelcome();
+  }
+
+  Future<void> _openProfile() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    _loadDashboard();
   }
 
   void _goToWelcome() {
@@ -421,6 +427,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text("MyCalorie"),
         actions: [
+          IconButton(
+            onPressed: _openProfile,
+            icon: const Icon(Icons.person),
+            tooltip: "Profile",
+          ),
           IconButton(
             onPressed: _handleLogout,
             icon: const Icon(Icons.logout),
