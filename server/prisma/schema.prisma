@@ -70,9 +70,11 @@ model User {
   visionLogCount           Int      @default(0)
   visionLogWindowStartedAt DateTime?
 
-  weightLogs  WeightLog[]
-  logEntries  LogEntry[]
-  foodItems   FoodItem[]
+  weightLogs      WeightLog[]
+  logEntries      LogEntry[]
+  foodItems       FoodItem[]
+  createdExercises Exercise[]
+  workoutLogs     WorkoutLog[]
 }
 
 model WeightLog {
@@ -122,4 +124,58 @@ model LogEntry {
   fat      Float
 
   @@index([userId, loggedAt])
+}
+
+// Exercise catalog: seeded entries (createdByUserId null) from the user's
+// actual routine, plus any custom exercises created for gym/sport sessions
+// that aren't part of that fixed program.
+model Exercise {
+  id              String   @id @default(uuid())
+  name            String
+  formCue         String?
+  videoUrl        String?
+  // Which day of the seeded routine this belongs to ("Monday" / "Wednesday" /
+  // "Friday"), or null for custom/freeform exercises not tied to a fixed day.
+  dayTag          String?
+  defaultSets     Int?
+  // Free text since targets are a mix of rep ranges and durations, e.g.
+  // "8-10", "3x12", "20-30 sec".
+  defaultReps     String?
+  createdByUserId String?
+  createdBy       User?    @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  setLogs WorkoutSetLog[]
+
+  @@index([name])
+}
+
+model WorkoutLog {
+  id       String   @id @default(uuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  // Free text ("Home", "Gym", "Badminton court", ...) rather than an enum —
+  // real training spans more contexts than one fixed home routine.
+  venue    String
+  loggedAt DateTime @default(now())
+  notes    String?
+
+  sets WorkoutSetLog[]
+
+  @@index([userId, loggedAt])
+}
+
+model WorkoutSetLog {
+  id              String     @id @default(uuid())
+  workoutLogId    String
+  workoutLog      WorkoutLog @relation(fields: [workoutLogId], references: [id])
+  exerciseId      String
+  exercise        Exercise   @relation(fields: [exerciseId], references: [id])
+  setNumber       Int
+  reps            Int?
+  weightKg        Float?
+  durationSeconds Int?
+  completedAt     DateTime   @default(now())
+
+  @@index([exerciseId, completedAt])
 }
