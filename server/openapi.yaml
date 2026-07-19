@@ -759,6 +759,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a custom food
+      description: >-
+        Only the food's creator may delete it. Foods that already have log
+        entries can't be deleted (the log history depends on them) — the
+        request is rejected with 409 instead.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found, or not owned by this user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Food has logged entries and can't be deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /foods/barcode/{barcode}:
     get:
@@ -844,6 +871,39 @@ paths:
                     type: integer
                   loggedToday:
                     type: boolean
+
+  /logs/range:
+    get:
+      summary: Per-day calorie/protein totals for the last N days
+      description: >-
+        Returns one entry per day, oldest first, zero-filled for days with no
+        logs — sized for a fixed-width trend chart.
+      parameters:
+        - name: days
+          in: query
+          description: Number of days to include (default 7, max 90)
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  days:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          example: "2026-07-13"
+                        calories:
+                          type: number
+                        protein:
+                          type: number
 
   /logs/{id}:
     patch:

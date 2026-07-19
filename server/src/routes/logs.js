@@ -78,6 +78,41 @@ router.get("/streak", async (req, res) => {
   res.json({ currentStreak, longestStreak, loggedToday });
 });
 
+// Per-day calorie/protein totals for the last N days (default 7), oldest
+// first and zero-filled, so the client can render a fixed-width trend chart
+// without gap handling.
+router.get("/range", async (req, res) => {
+  const days = Math.min(Math.max(Number(req.query.days) || 7, 1), 90);
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const start = addDays(today, -(days - 1));
+  const end = addDays(today, 1);
+
+  const entries = await prisma.logEntry.findMany({
+    where: { userId: req.userId, loggedAt: { gte: start, lt: end } },
+    select: { loggedAt: true, calories: true, protein: true },
+  });
+
+  const totalsByDay = new Map();
+  for (const entry of entries) {
+    const key = dateKey(entry.loggedAt);
+    const totals = totalsByDay.get(key) || { calories: 0, protein: 0 };
+    totals.calories += entry.calories;
+    totals.protein += entry.protein;
+    totalsByDay.set(key, totals);
+  }
+
+  const result = [];
+  for (let i = 0; i < days; i++) {
+    const key = dateKey(addDays(start, i));
+    const totals = totalsByDay.get(key) || { calories: 0, protein: 0 };
+    result.push({ date: key, calories: totals.calories, protein: totals.protein });
+  }
+
+  res.json({ days: result });
+});
+
 router.post("/", async (req, res) => {
   const { foodItemId, servingGrams, mealType, loggedAt } = req.body;
 

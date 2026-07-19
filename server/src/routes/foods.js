@@ -141,4 +141,23 @@ router.patch("/:id", async (req, res) => {
   res.json(updated);
 });
 
+router.delete("/:id", async (req, res) => {
+  const food = await prisma.foodItem.findUnique({ where: { id: req.params.id } });
+
+  if (!food || food.createdByUserId !== req.userId) {
+    return res.status(404).json({ error: "Custom food not found" });
+  }
+
+  // LogEntry.foodItemId is a required relation, so deleting a food that has
+  // been logged would violate the foreign key. Block it with a clear error
+  // instead of letting Postgres throw.
+  const logCount = await prisma.logEntry.count({ where: { foodItemId: food.id } });
+  if (logCount > 0) {
+    return res.status(409).json({ error: "This food has logged entries and can't be deleted" });
+  }
+
+  await prisma.foodItem.delete({ where: { id: food.id } });
+  res.status(204).send();
+});
+
 module.exports = router;
