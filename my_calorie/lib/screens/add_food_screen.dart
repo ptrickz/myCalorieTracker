@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../constants.dart";
+import "../widgets/photo_viewer.dart";
 import "create_food_screen.dart";
 
 class AddFoodScreen extends StatefulWidget {
@@ -182,8 +183,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     return ListTile(
       leading: photoBase64 == null
           ? const CircleAvatar(child: Icon(Icons.restaurant))
-          : CircleAvatar(
-              backgroundImage: MemoryImage(base64Decode(photoBase64)),
+          : GestureDetector(
+              onTap: () => showFoodPhotoViewer(context, photoBase64),
+              child: CircleAvatar(backgroundImage: MemoryImage(base64Decode(photoBase64))),
             ),
       title: Text(food["name"] as String),
       subtitle: Text("${(food["caloriesPer100g"] as num).round()} kcal / 100g"),

@@ -4,6 +4,7 @@ import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../widgets/app_toast.dart";
 import "../widgets/food_photo_picker.dart";
+import "../widgets/photo_viewer.dart";
 
 class MyCustomFoodsScreen extends StatefulWidget {
   const MyCustomFoodsScreen({super.key});
@@ -159,7 +160,10 @@ class _MyCustomFoodsScreenState extends State<MyCustomFoodsScreen> {
                         return ListTile(
                           leading: photoBase64 == null
                               ? const CircleAvatar(child: Icon(Icons.restaurant))
-                              : CircleAvatar(backgroundImage: MemoryImage(base64Decode(photoBase64))),
+                              : GestureDetector(
+                                  onTap: () => showFoodPhotoViewer(context, photoBase64),
+                                  child: CircleAvatar(backgroundImage: MemoryImage(base64Decode(photoBase64))),
+                                ),
                           title: Text(food["name"] as String),
                           subtitle: Text(
                             "${(food["caloriesPer100g"] as num).round()} kcal / 100g · "

@@ -34,8 +34,10 @@ class _CropPhotoScreenState extends State<CropPhotoScreen> {
       body: Crop(
         controller: _controller,
         image: widget.imageBytes,
-        aspectRatio: 1,
-        withCircleUi: false,
+        // Circular guide only — matches how the photo will actually be
+        // displayed (CircleAvatar), but the saved crop stays a square image
+        // so it also looks right in non-circular previews.
+        withCircleUi: true,
         baseColor: Colors.black,
         maskColor: Colors.black.withValues(alpha: 0.6),
         onCropped: (croppedData) {
