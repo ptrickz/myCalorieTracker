@@ -402,6 +402,145 @@ components:
             - $ref: "#/components/schemas/VisionLogLabelResult"
             - $ref: "#/components/schemas/VisionLogPlateResult"
 
+    Exercise:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        formCue:
+          type: string
+          nullable: true
+        videoUrl:
+          type: string
+          nullable: true
+        dayTag:
+          type: string
+          nullable: true
+          description: "Monday / Wednesday / Friday for the seeded routine, null for custom exercises"
+        defaultSets:
+          type: integer
+          nullable: true
+        defaultReps:
+          type: string
+          nullable: true
+          description: Free text since targets mix rep ranges and durations, e.g. "8-10" or "20-30 sec"
+        createdByUserId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ExerciseCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Cable Lat Pulldown
+        formCue:
+          type: string
+        videoUrl:
+          type: string
+
+    ProgressionSuggestion:
+      type: object
+      properties:
+        hasHistory:
+          type: boolean
+        last:
+          $ref: "#/components/schemas/WorkoutSetLog"
+        suggestion:
+          type: object
+          properties:
+            reps:
+              type: integer
+              nullable: true
+            weightKg:
+              type: number
+              nullable: true
+            durationSeconds:
+              type: integer
+              nullable: true
+
+    WorkoutLog:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        venue:
+          type: string
+          example: Home
+        loggedAt:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          nullable: true
+        sets:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutSetLog"
+
+    WorkoutLogCreate:
+      type: object
+      required: [venue]
+      properties:
+        venue:
+          type: string
+          example: Gym
+        notes:
+          type: string
+
+    WorkoutSetLog:
+      type: object
+      properties:
+        id:
+          type: string
+        workoutLogId:
+          type: string
+        exerciseId:
+          type: string
+        exercise:
+          $ref: "#/components/schemas/Exercise"
+        setNumber:
+          type: integer
+        reps:
+          type: integer
+          nullable: true
+        weightKg:
+          type: number
+          nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+
+    WorkoutSetLogCreate:
+      type: object
+      required: [exerciseId, setNumber]
+      properties:
+        exerciseId:
+          type: string
+        setNumber:
+          type: integer
+          example: 1
+        reps:
+          type: integer
+          example: 12
+        weightKg:
+          type: number
+          example: 10
+        durationSeconds:
+          type: integer
+          example: 30
+
 security:
   - bearerAuth: []
 
@@ -824,6 +963,206 @@ paths:
                 $ref: "#/components/schemas/Error"
         "429":
           description: Daily scan limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /exercises:
+    get:
+      summary: List exercises (seeded catalog + user's own custom exercises)
+      parameters:
+        - name: dayTag
+          in: query
+          description: Filter to one day of the seeded routine, e.g. "Monday"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching exercises
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Exercise"
+    post:
+      summary: Create a custom exercise
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExerciseCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Exercise"
+        "400":
+          description: Missing name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /exercises/{id}/progression:
+    get:
+      summary: Rule-based progression suggestion from the user's own history for this exercise
+      description: >-
+        No AI — a fixed rule from the most recent set logged for this
+        exercise: +2.5kg if weighted, +5 sec if a timed hold, +1 rep
+        otherwise.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Progression suggestion (or hasHistory:false if never logged)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgressionSuggestion"
+
+  /workout-logs:
+    get:
+      summary: List the user's recent workout sessions
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent sessions, newest first, each with its logged sets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkoutLog"
+    post:
+      summary: Start a new workout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutLogCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutLog"
+        "400":
+          description: Missing venue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /workout-logs/{id}:
+    get:
+      summary: Get one workout session with its logged sets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutLog"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a workout session and its sets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /workout-logs/{id}/sets:
+    post:
+      summary: Log a set within a workout session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutSetLogCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutSetLog"
+        "400":
+          description: Missing exerciseId or setNumber
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Workout log not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /workout-logs/{id}/sets/{setId}:
+    delete:
+      summary: Delete a single logged set
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: setId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
           content:
             application/json:
               schema:
