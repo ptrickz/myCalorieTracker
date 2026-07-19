@@ -65,6 +65,11 @@ model User {
   weekdayTargetCalories   Float?
   weekendTargetCalories   Float?
 
+  // Rolling 24h rate limit for the vision-log endpoint (Claude vision calls
+  // cost real money per request). Resets when the window expires.
+  visionLogCount           Int      @default(0)
+  visionLogWindowStartedAt DateTime?
+
   weightLogs  WeightLog[]
   logEntries  LogEntry[]
   foodItems   FoodItem[]

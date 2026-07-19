@@ -323,6 +323,85 @@ components:
           type: string
           format: date-time
 
+    VisionLogRequest:
+      type: object
+      required: [image, mediaType, mode]
+      properties:
+        image:
+          type: string
+          description: Raw base64-encoded image data (no data-URI prefix).
+        mediaType:
+          type: string
+          enum: [image/jpeg, image/png, image/gif, image/webp]
+        mode:
+          type: string
+          enum: [label, plate]
+
+    VisionLogLabelResult:
+      type: object
+      properties:
+        name:
+          type: string
+        caloriesPer100g:
+          type: number
+        proteinPer100g:
+          type: number
+        carbsPer100g:
+          type: number
+        fatPer100g:
+          type: number
+        sodiumPer100gMg:
+          type: number
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        notes:
+          type: string
+
+    VisionLogPlateResult:
+      type: object
+      properties:
+        description:
+          type: string
+        ingredients:
+          type: array
+          items:
+            type: string
+        estimatedServingGrams:
+          type: number
+        caloriesMin:
+          type: number
+        caloriesMax:
+          type: number
+        proteinGramsMin:
+          type: number
+        proteinGramsMax:
+          type: number
+        carbsGramsMin:
+          type: number
+        carbsGramsMax:
+          type: number
+        fatGramsMin:
+          type: number
+        fatGramsMax:
+          type: number
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        notes:
+          type: string
+
+    VisionLogResponse:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [label, plate]
+        result:
+          oneOf:
+            - $ref: "#/components/schemas/VisionLogLabelResult"
+            - $ref: "#/components/schemas/VisionLogPlateResult"
+
 security:
   - bearerAuth: []
 
@@ -702,6 +781,49 @@ paths:
                 $ref: "#/components/schemas/WeightLog"
         "400":
           description: Missing weightKg
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /vision-log:
+    post:
+      summary: Analyze a food photo with Claude vision (label or plate mode)
+      description: >-
+        `label` mode reads a printed nutrition label and returns exact
+        per-100g macros. `plate` mode estimates a meal's ingredients and
+        macros as a min/max range rather than a false-precise single number.
+        Rate-limited per user (rolling 24h window). The client must always
+        show the result in an editable review form before saving anything —
+        this endpoint only returns an estimate, it never logs or creates
+        records itself.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VisionLogRequest"
+      responses:
+        "200":
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisionLogResponse"
+        "400":
+          description: Missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Claude declined to analyze the image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Daily scan limit reached
           content:
             application/json:
               schema:
