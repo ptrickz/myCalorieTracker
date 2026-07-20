@@ -17,6 +17,10 @@ class WorkoutWeekCalendar extends StatefulWidget {
 const _calStartHour = 5;
 const _calEndHour = 24;
 const _calHeightPerMinute = 0.5;
+const _calCardHeight = 300.0;
+// The WeekView stacks two fixed header rows (week-title + weekday row), each
+// this tall, above the scrollable time grid.
+const _calHeaderHeight = 50.0;
 
 class _WorkoutWeekCalendarState extends State<WorkoutWeekCalendar> {
   final _controller = EventController();
@@ -31,13 +35,15 @@ class _WorkoutWeekCalendarState extends State<WorkoutWeekCalendar> {
     _syncEvents();
   }
 
-  /// Vertical offset that brings "now" into view with a little context above
-  /// it. The time axis maps minutes-since-startHour to pixels via
-  /// heightPerMinute, so we invert that and back off ~2.5h.
+  /// Vertical offset that centres "now" in the visible time grid. The axis
+  /// maps minutes-since-startHour to pixels via heightPerMinute; we back off
+  /// half the scrollable viewport so the live-time line sits in the middle.
   double _computeInitialScrollOffset() {
     final now = DateTime.now();
     final minutesSinceStart = (now.hour - _calStartHour) * 60 + now.minute;
-    final offset = minutesSinceStart * _calHeightPerMinute - 80;
+    final nowPixel = minutesSinceStart * _calHeightPerMinute;
+    final viewport = _calCardHeight - 2 * _calHeaderHeight;
+    final offset = nowPixel - viewport / 2;
     return offset < 0 ? 0 : offset;
   }
 
@@ -87,11 +93,12 @@ class _WorkoutWeekCalendarState extends State<WorkoutWeekCalendar> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        height: 300,
+        height: _calCardHeight,
         child: WeekView(
           controller: _controller,
           initialDay: DateTime.now(),
           scrollOffset: _initialScrollOffset,
+          weekTitleHeight: _calHeaderHeight,
           showLiveTimeLineInAllDays: true,
           startDay: WeekDays.monday,
           startHour: _calStartHour,
