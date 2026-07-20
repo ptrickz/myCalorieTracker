@@ -96,11 +96,70 @@ const EXERCISES = [
     formCue: "Steady pace, hips level, arms overhead — an available substitute/extra, not in the fixed 3-day plan.",
     videoUrl: "https://www.youtube.com/watch?v=ixxk9Qfn61o",
   },
+  // Extra catalog exercises (not tied to the fixed 3-day plan), available in
+  // any freeform session.
+  {
+    name: "Low Incline Dumbbell Press",
+    dayTag: null,
+    defaultSets: 3,
+    defaultReps: "10-15",
+    formCue: "Bench at a low incline (15-30°). Press dumbbells up and slightly in, stop just short of lockout, lower under control to chest level.",
+    videoUrl: "https://www.youtube.com/watch?v=U_N0Pjohh9I",
+  },
+  {
+    name: "Neutral Grip Pull-Ups",
+    dayTag: null,
+    defaultSets: 3,
+    defaultReps: "5-8",
+    formCue: "Palms facing each other on parallel handles. Pull chest to bar, elbows tucked close to the body, control the descent.",
+    videoUrl: "https://www.youtube.com/watch?v=cd_38C6LuvY",
+  },
+  {
+    name: "Dumbbell Romanian Deadlift",
+    dayTag: null,
+    defaultSets: 3,
+    defaultReps: "10-15",
+    formCue: "Soft knees, hinge at hips pushing them back, dumbbells stay close to legs, flat back, stop when you feel a hamstring stretch, drive hips forward to stand.",
+    videoUrl: "https://www.youtube.com/watch?v=hQgFixeXdZo",
+  },
+  {
+    name: "Cable Row",
+    dayTag: null,
+    defaultSets: 3,
+    defaultReps: "10-15",
+    formCue: "Seated, back straight, pull handle to lower ribs squeezing shoulder blades together, control the return without rounding the back.",
+    videoUrl: "https://www.youtube.com/watch?v=vwHG9Jfu4sw",
+  },
+  {
+    name: "Lateral Raise Superset",
+    dayTag: null,
+    defaultSets: 3,
+    defaultReps: "10-20",
+    formCue: "Slight bend in elbows, raise dumbbells out to the sides to shoulder height, lead with elbows, lower slowly. Paired as a superset per the program.",
+    videoUrl: "https://www.youtube.com/watch?v=Y29xKcze8Ik",
+  },
+  {
+    name: "Dead Bug",
+    dayTag: null,
+    defaultSets: 3,
+    defaultReps: "5 per side",
+    formCue: "On back, arms up, knees bent 90°. Lower opposite arm and leg toward the floor while keeping lower back pressed down, return, alternate sides.",
+    videoUrl: "https://www.youtube.com/watch?v=bxn9FBrt4-A",
+  },
+  {
+    name: "Arms Superset",
+    dayTag: null,
+    defaultSets: 3,
+    defaultReps: "8-12",
+    formCue: null,
+    videoUrl: null,
+  },
 ];
 
 // YouTube's standard thumbnail CDN — always available for any valid video ID,
 // so this is a real, working image rather than a guessed URL.
 function thumbnailFor(videoUrl) {
+  if (!videoUrl) return null;
   const match = videoUrl.match(/[?&]v=([^&]+)/);
   return match ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : null;
 }

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "postinstall": "prisma generate",
-    "start": "prisma migrate deploy && node src/index.js",
+    "start": "prisma migrate deploy && (node prisma/seedExercises.js || true) && node src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
