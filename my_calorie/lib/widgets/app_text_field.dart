@@ -45,9 +45,12 @@ class AppTextField extends StatelessWidget {
       style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
       placeholderStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
       cursorColor: AppColors.accent,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
+        // A visible outline so a filled field still reads as an input, even
+        // when it sits on a same-coloured surface (e.g. a card or dialog).
+        border: Border.all(color: AppColors.border),
       ),
     );
   }

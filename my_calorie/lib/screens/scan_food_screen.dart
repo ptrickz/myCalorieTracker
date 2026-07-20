@@ -321,7 +321,8 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
           AppTextField(
             controller: _servingController,
             keyboardType: TextInputType.number,
-            placeholder: "Serving size (grams)",
+            placeholder: "Serving size",
+            suffix: const _UnitLabel("g"),
           ),
           const SizedBox(height: 12),
           Row(
@@ -330,7 +331,8 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
                 child: AppTextField(
                   controller: _caloriesController,
                   keyboardType: TextInputType.number,
-                  placeholder: "kcal / 100g",
+                  placeholder: "Calories",
+                  suffix: const _UnitLabel("kcal"),
                 ),
               ),
               const SizedBox(width: 12),
@@ -338,7 +340,8 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
                 child: AppTextField(
                   controller: _proteinController,
                   keyboardType: TextInputType.number,
-                  placeholder: "Protein / 100g",
+                  placeholder: "Protein",
+                  suffix: const _UnitLabel("g"),
                 ),
               ),
             ],
@@ -350,7 +353,8 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
                 child: AppTextField(
                   controller: _carbsController,
                   keyboardType: TextInputType.number,
-                  placeholder: "Carbs / 100g",
+                  placeholder: "Carbs",
+                  suffix: const _UnitLabel("g"),
                 ),
               ),
               const SizedBox(width: 12),
@@ -358,10 +362,16 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
                 child: AppTextField(
                   controller: _fatController,
                   keyboardType: TextInputType.number,
-                  placeholder: "Fat / 100g",
+                  placeholder: "Fat",
+                  suffix: const _UnitLabel("g"),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            "Values are per 100g",
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -381,6 +391,22 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Small unit suffix shown inside a macro input (e.g. "kcal", "g") so the unit
+/// stays visible after the placeholder is replaced by a value.
+class _UnitLabel extends StatelessWidget {
+  final String text;
+
+  const _UnitLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
     );
   }
 }
