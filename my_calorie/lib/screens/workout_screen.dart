@@ -207,30 +207,19 @@ class WorkoutScreenState extends State<WorkoutScreen> {
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(24, 24, 24, 24),
                   children: [
-                    if (dayTag != null) ...[
+                    Text(
+                      dayTag != null ? "Today's workout ($dayTag)" : "Today — rest day",
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    if (dayTag == null) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        "Today's workout ($dayTag)",
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      WorkoutWeekCalendar(logs: _recentLogs),
-
-                      const SizedBox(height: 12),
-                    ] else ...[
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Text(restNote ?? "No workout planned today."),
-                        ),
+                        restNote ?? "No workout planned today.",
+                        style: const TextStyle(color: AppColors.textSecondary),
                       ),
                     ],
-
-                    const SizedBox(height: 24),
-                    Text(
-                      "This week",
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-
+                    const SizedBox(height: 8),
+                    WorkoutWeekCalendar(logs: _recentLogs),
                     const SizedBox(height: 24),
                     Text(
                       "Session history",
