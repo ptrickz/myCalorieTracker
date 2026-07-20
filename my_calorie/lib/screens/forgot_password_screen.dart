@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "../theme.dart";
+import "../widgets/app_text_field.dart";
 import "../widgets/primary_button.dart";
 import "password_reset_sent_screen.dart";
 
@@ -52,13 +53,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 32),
-            TextField(
+            AppTextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                hintText: "Enter your email address...",
-                prefixIcon: Icon(Icons.mail_outline, color: AppColors.textSecondary),
-              ),
+              placeholder: "Enter your email address...",
+              prefix: const Icon(Icons.mail_outline, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 24),
             PrimaryButton(label: "Send Reset Link", isLoading: _isLoading, onPressed: _handleSend),

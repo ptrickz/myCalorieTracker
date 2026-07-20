@@ -2,7 +2,11 @@ import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../theme.dart";
+import "../utils/tdee_calc.dart";
+import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
+import "../widgets/background_image_body.dart";
+import "../widgets/weekly_loss_goal_slider.dart";
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -40,6 +44,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _sex;
   String? _activityLevel;
   String? _goalType;
+  double _weeklyLossGoalKg = 0.5;
+  double? _latestWeightKg;
   bool _useCustomCalorieTargets = false;
 
   bool _isEditing = false;
@@ -52,6 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _backupSex;
   String? _backupActivityLevel;
   String? _backupGoalType;
+  double _backupWeeklyLossGoal = 0.5;
   String _backupHeight = "";
   String _backupGoalWeight = "";
   String _backupMilestoneWeight = "";
@@ -94,6 +101,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _sex = profile["sex"] as String?;
         _activityLevel = profile["activityLevel"] as String?;
         _goalType = profile["goalType"] as String?;
+        _weeklyLossGoalKg = (profile["weeklyLossGoalKg"] as num?)?.toDouble() ?? 0.5;
+        _latestWeightKg = (profile["latestWeightKg"] as num?)?.toDouble();
         _heightController.text = (profile["heightCm"] as num?)?.toString() ?? "";
         _goalWeightController.text = (profile["goalWeightKg"] as num?)?.toString() ?? "";
         _milestoneWeightController.text = (profile["milestoneWeightKg"] as num?)?.toString() ?? "";
@@ -116,6 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _backupSex = _sex;
     _backupActivityLevel = _activityLevel;
     _backupGoalType = _goalType;
+    _backupWeeklyLossGoal = _weeklyLossGoalKg;
     _backupHeight = _heightController.text;
     _backupGoalWeight = _goalWeightController.text;
     _backupMilestoneWeight = _milestoneWeightController.text;
@@ -132,6 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _sex = _backupSex;
       _activityLevel = _backupActivityLevel;
       _goalType = _backupGoalType;
+      _weeklyLossGoalKg = _backupWeeklyLossGoal;
       _heightController.text = _backupHeight;
       _goalWeightController.text = _backupGoalWeight;
       _milestoneWeightController.text = _backupMilestoneWeight;
@@ -179,6 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         goalWeightKg: double.tryParse(_goalWeightController.text),
         milestoneWeightKg: double.tryParse(_milestoneWeightController.text),
         proteinTargetG: double.tryParse(_proteinTargetController.text),
+        weeklyLossGoalKg: _weeklyLossGoalKg,
         useCustomCalorieTargets: _useCustomCalorieTargets,
         weekdayTargetCalories:
             _useCustomCalorieTargets ? double.tryParse(_weekdayTargetController.text) : null,
@@ -198,11 +210,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Profile"), centerTitle: true),
-      body: _isLoading
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(title: const Text("Profile")),
+      body: BackgroundImageBody(
+        imagePath: "assets/img/profile.png",
+        child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.fromLTRB(
+                  24, MediaQuery.of(context).padding.top + kToolbarHeight + 8, 24, 24),
               children: [
                 _buildHeaderCard(),
                 const SizedBox(height: 24),
@@ -236,6 +252,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
               ],
             ),
+      ),
     );
   }
 
@@ -308,10 +325,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onChanged: (value) => setState(() => _sex = value),
               ),
               const SizedBox(height: 12),
-              TextField(
+              AppTextField(
                 controller: _heightController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Height (cm)"),
+                placeholder: "Height (cm)",
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 12),
@@ -361,6 +378,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Live estimate of the daily calorie target for the values currently in
+  /// the form; null while required inputs are missing. Uses the latest logged
+  /// weight, mirroring the server calculation.
+  double? get _previewTargetCalories => estimateDailyTargetCalories(
+        weightKg: _latestWeightKg,
+        heightCm: double.tryParse(_heightController.text),
+        dateOfBirth: _dateOfBirth,
+        sex: _sex,
+        activityLevel: _activityLevel,
+        goalType: _goalType,
+        weeklyLossGoalKg: _weeklyLossGoalKg,
+      );
+
   Widget _buildGoalsSection() {
     if (_isEditing) {
       return Card(
@@ -368,23 +398,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              TextField(
+              AppTextField(
                 controller: _goalWeightController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Goal weight (kg)"),
+                placeholder: "Goal weight (kg)",
               ),
               const SizedBox(height: 12),
-              TextField(
+              AppTextField(
                 controller: _milestoneWeightController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Milestone weight (kg)"),
+                placeholder: "Milestone weight (kg)",
               ),
               const SizedBox(height: 12),
-              TextField(
+              AppTextField(
                 controller: _proteinTargetController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Protein target (g)"),
+                placeholder: "Protein target (g)",
               ),
+              if (_goalType == "LOSE" || _goalType == "GAIN") ...[
+                const SizedBox(height: 16),
+                WeeklyLossGoalSlider(
+                  value: _weeklyLossGoalKg,
+                  isGain: _goalType == "GAIN",
+                  previewTargetCalories: _previewTargetCalories,
+                  onChanged: (value) => setState(() => _weeklyLossGoalKg = value),
+                ),
+              ],
               const SizedBox(height: 4),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -393,16 +432,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onChanged: (value) => setState(() => _useCustomCalorieTargets = value),
               ),
               if (_useCustomCalorieTargets) ...[
-                TextField(
+                AppTextField(
                   controller: _weekdayTargetController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Weekday calorie target"),
+                  placeholder: "Weekday calorie target",
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                AppTextField(
                   controller: _weekendTargetController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Weekend calorie target"),
+                  placeholder: "Weekend calorie target",
                 ),
               ],
             ],
@@ -428,6 +467,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _proteinTargetController.text.isEmpty
                   ? "Not set"
                   : "${_proteinTargetController.text} g"),
+          if (_goalType == "LOSE" || _goalType == "GAIN")
+            _buildInfoTile(
+                Icons.speed,
+                _goalType == "GAIN" ? "Weekly gain goal" : "Weekly loss goal",
+                "${_weeklyLossGoalKg.toStringAsFixed(2)} kg/week"),
           SwitchListTile(
             secondary: const Icon(Icons.tune, color: AppColors.textSecondary),
             title: const Text("Custom weekday/weekend targets", style: TextStyle(fontSize: 14)),

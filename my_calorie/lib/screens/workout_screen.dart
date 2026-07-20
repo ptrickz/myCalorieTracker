@@ -1,9 +1,12 @@
+import "package:flutter/cupertino.dart";
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../theme.dart";
+import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
 import "../widgets/background_image_body.dart";
+import "../widgets/workout_week_calendar.dart";
 import "workout_session_screen.dart";
 
 const _restDayNotes = {
@@ -101,36 +104,54 @@ class WorkoutScreenState extends State<WorkoutScreen> {
     final otherController = TextEditingController();
     var selectedVenue = _venueOptions.first;
 
-    final venue = await showDialog<String>(
+    final venue = await showCupertinoDialog<String>(
       context: context,
+      barrierDismissible: true,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) => CupertinoAlertDialog(
           title: const Text("Log a session"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: selectedVenue,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: "Where?"),
-                items: _venueOptions.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                onChanged: (value) => setDialogState(() => selectedVenue = value!),
+          // Material ancestor for the dropdown, which Cupertino dialogs
+          // don't provide on their own.
+          content: Material(
+            type: MaterialType.transparency,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedVenue,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: "Where?"),
+                    items: _venueOptions
+                        .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                        .toList(),
+                    onChanged: (value) =>
+                        setDialogState(() => selectedVenue = value!),
+                  ),
+                  if (selectedVenue == "Other") ...[
+                    const SizedBox(height: 12),
+                    AppTextField(
+                      controller: otherController,
+                      autofocus: true,
+                      placeholder: "Venue name",
+                    ),
+                  ],
+                ],
               ),
-              if (selectedVenue == "Other") ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: otherController,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: "Venue name"),
-                ),
-              ],
-            ],
+            ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
-            TextButton(
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
               onPressed: () => Navigator.of(context).pop(
-                selectedVenue == "Other" ? otherController.text.trim() : selectedVenue,
+                selectedVenue == "Other"
+                    ? otherController.text.trim()
+                    : selectedVenue,
               ),
               child: const Text("Start"),
             ),
@@ -148,7 +169,10 @@ class WorkoutScreenState extends State<WorkoutScreen> {
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => WorkoutSessionScreen(workoutLogId: log["id"] as String, initialExercises: const []),
+          builder: (_) => WorkoutSessionScreen(
+            workoutLogId: log["id"] as String,
+            initialExercises: const [],
+          ),
         ),
       );
       _load();
@@ -166,55 +190,82 @@ class WorkoutScreenState extends State<WorkoutScreen> {
     final restNote = _restDayNotes[DateTime.now().weekday];
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Workouts")),
+      extendBodyBehindAppBar: true,
       body: BackgroundImageBody(
         imagePath: "assets/img/workouts.png",
         child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(24),
-                    children: [
-                      if (dayTag != null) ...[
-                        Text("Today's workout ($dayTag)", style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 12),
-                        ..._todaysExercises.map(_buildExercisePreview),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: _isStarting ? null : _startTodaysWorkout,
-                          child: _isStarting
-                              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Text("Start Workout"),
-                        ),
-                      ] else ...[
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Text(restNote ?? "No workout planned today."),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: _isStarting ? null : _startFreeSession,
-                        child: const Text("Log a different session (gym, sport, ...)"),
-                      ),
-                      const SizedBox(height: 24),
-                      Text("Session history", style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      if (_recentLogs.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Text("No sessions logged yet."),
-                        )
-                      else
-                        ..._buildWeekGroups(),
-                    ],
-                  ),
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+            ? Center(
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red),
                 ),
+              )
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(24, 24, 24, 24),
+                  children: [
+                    if (dayTag != null) ...[
+                      Text(
+                        "Today's workout ($dayTag)",
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      WorkoutWeekCalendar(logs: _recentLogs),
+                      const SizedBox(height: 12),
+                      ..._todaysExercises.map(_buildExercisePreview),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: _isStarting ? null : _startTodaysWorkout,
+                        child: _isStarting
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text("Start Workout"),
+                      ),
+                    ] else ...[
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(restNote ?? "No workout planned today."),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: _isStarting ? null : _startFreeSession,
+                      child: const Text(
+                        "Log a different session (gym, sport, ...)",
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      "This week",
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+
+                    const SizedBox(height: 24),
+                    Text(
+                      "Session history",
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    if (_recentLogs.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text("No sessions logged yet."),
+                      )
+                    else
+                      ..._buildWeekGroups(),
+                  ],
+                ),
+              ),
       ),
     );
   }
@@ -228,7 +279,12 @@ class WorkoutScreenState extends State<WorkoutScreen> {
             ? null
             : ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(imageUrl, width: 56, height: 56, fit: BoxFit.cover),
+                child: Image.network(
+                  imageUrl,
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                ),
               ),
         title: Text(exercise["name"] as String),
         subtitle: Text(
@@ -240,11 +296,22 @@ class WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   static const _monthNames = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
 
-  String _formatShortDate(DateTime date) => "${_monthNames[date.month - 1]} ${date.day}";
+  String _formatShortDate(DateTime date) =>
+      "${_monthNames[date.month - 1]} ${date.day}";
 
   /// Sessions grouped by calendar week (Monday-start), newest week first.
   List<Widget> _buildWeekGroups() {
@@ -252,7 +319,9 @@ class WorkoutScreenState extends State<WorkoutScreen> {
     for (final log in _recentLogs) {
       final loggedAt = DateTime.parse(log["loggedAt"] as String).toLocal();
       final day = DateTime(loggedAt.year, loggedAt.month, loggedAt.day);
-      final weekStart = day.subtract(Duration(days: day.weekday - DateTime.monday));
+      final weekStart = day.subtract(
+        Duration(days: day.weekday - DateTime.monday),
+      );
       groups.putIfAbsent(weekStart, () => []).add(log);
     }
 
@@ -264,7 +333,11 @@ class WorkoutScreenState extends State<WorkoutScreen> {
           padding: const EdgeInsets.only(top: 12, bottom: 4),
           child: Text(
             "${_formatShortDate(weekStart)} - ${_formatShortDate(weekStart.add(const Duration(days: 6)))}",
-            style: const TextStyle(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: AppColors.accent,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         ...groups[weekStart]!.map(_buildSessionTile),
@@ -274,13 +347,17 @@ class WorkoutScreenState extends State<WorkoutScreen> {
 
   Widget _buildSessionTile(Map<String, dynamic> log) {
     final sets = (log["sets"] as List).cast<Map<String, dynamic>>();
-    final exerciseNames = sets.map((s) => (s["exercise"] as Map<String, dynamic>)["name"] as String).toSet();
+    final exerciseNames = sets
+        .map((s) => (s["exercise"] as Map<String, dynamic>)["name"] as String)
+        .toSet();
     final loggedAt = DateTime.parse(log["loggedAt"] as String).toLocal();
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text("${log["venue"]} · ${_formatShortDate(loggedAt)}"),
-      subtitle: Text(exerciseNames.isEmpty ? "No sets logged" : exerciseNames.join(", ")),
+      subtitle: Text(
+        exerciseNames.isEmpty ? "No sets logged" : exerciseNames.join(", "),
+      ),
       trailing: IconButton(
         icon: const Icon(Icons.delete_outline),
         tooltip: "Delete session",
@@ -291,14 +368,24 @@ class WorkoutScreenState extends State<WorkoutScreen> {
 
   Future<void> _confirmDeleteSession(Map<String, dynamic> log) async {
     final loggedAt = DateTime.parse(log["loggedAt"] as String).toLocal();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
         title: const Text("Delete session?"),
-        content: Text('Delete the ${log["venue"]} session from ${_formatShortDate(loggedAt)}? This can\'t be undone.'),
+        content: Text(
+          'Delete the ${log["venue"]} session from ${_formatShortDate(loggedAt)}? This can\'t be undone.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Delete")),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Delete"),
+          ),
         ],
       ),
     );

@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
+import "../widgets/app_text_field.dart";
 import "../widgets/food_photo_picker.dart";
 
 class CreateFoodScreen extends StatefulWidget {
@@ -68,35 +69,35 @@ class _CreateFoodScreenState extends State<CreateFoodScreen> {
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Name")),
+          AppTextField(controller: _nameController, placeholder: "Name"),
           const SizedBox(height: 12),
           FoodPhotoPicker(
             photoBase64: _photoBase64,
             onChanged: (value) => setState(() => _photoBase64 = value),
           ),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
             controller: _caloriesController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: "Calories per 100g"),
+            placeholder: "Calories per 100g",
           ),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
             controller: _proteinController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: "Protein per 100g (g)"),
+            placeholder: "Protein per 100g (g)",
           ),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
             controller: _carbsController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: "Carbs per 100g (g)"),
+            placeholder: "Carbs per 100g (g)",
           ),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
             controller: _fatController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: "Fat per 100g (g)"),
+            placeholder: "Fat per 100g (g)",
           ),
           const SizedBox(height: 24),
           if (_errorMessage != null)

@@ -94,6 +94,9 @@ components:
           type: number
           nullable: true
           description: User-set value if present, otherwise weightKg * 1.7
+        weeklyLossGoalKg:
+          type: number
+          description: Weekly weight-change pace in kg (0.25-1.0). Daily calorie adjustment is weeklyLossGoalKg * 7700 / 7, subtracted for LOSE and added for GAIN.
         useCustomCalorieTargets:
           type: boolean
           description: When false, weekdayTargetCalories and weekendTargetCalories are both the auto TDEE target.
@@ -147,6 +150,11 @@ components:
         proteinTargetG:
           type: number
           example: 150
+        weeklyLossGoalKg:
+          type: number
+          minimum: 0.25
+          maximum: 1.0
+          example: 0.5
         useCustomCalorieTargets:
           type: boolean
           example: true

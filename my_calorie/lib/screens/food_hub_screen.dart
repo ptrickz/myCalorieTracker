@@ -1,9 +1,12 @@
 import "dart:async";
 import "dart:convert";
+import "package:flutter/cupertino.dart";
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../constants.dart";
+import "../theme.dart";
+import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
 import "../widgets/background_image_body.dart";
 import "../widgets/food_photo_picker.dart";
@@ -44,11 +47,36 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   String? _customErrorMessage;
   List<Map<String, dynamic>> _customFoods = const [];
 
+  // Day log state (moved here from the Dashboard): the browsable per-day
+  // entry list shown above the sub-tabs.
+  bool _isLoadingDay = false;
+  Map<String, dynamic> _dayTotals = const {
+    "calories": 0,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 0,
+  };
+  List<Map<String, dynamic>> _entries = const [];
+  DateTime _viewedDate = DateTime.now();
+
+  bool get _isViewingToday => _dateKey(_viewedDate) == _dateKey(DateTime.now());
+
+  String _dateKey(DateTime date) =>
+      "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+  String _dateLabel(DateTime date) {
+    if (_isViewingToday) return "Today's log";
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    if (_dateKey(date) == _dateKey(yesterday)) return "Yesterday's log";
+    return "Log for ${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
+
   @override
   void initState() {
     super.initState();
     _loadFoods();
     _loadCustomFoods();
+    _loadDayLogs(DateTime.now());
   }
 
   @override
@@ -59,6 +87,129 @@ class FoodHubScreenState extends State<FoodHubScreen> {
 
   /// Called by HomeShell after the FAB's CreateFoodScreen push returns.
   Future<void> refreshAfterCreate() => _loadCustomFoods();
+
+  Future<void> _loadDayLogs(DateTime date) async {
+    setState(() {
+      _viewedDate = date;
+      _isLoadingDay = true;
+    });
+
+    try {
+      final token = await _authStorage.readToken();
+      final logs = await _apiService.getLogs(token!, date: _dateKey(date));
+      if (!mounted) return;
+      setState(() {
+        _dayTotals = logs["totals"] as Map<String, dynamic>;
+        _entries = (logs["entries"] as List).cast<Map<String, dynamic>>();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoadingDay = false);
+    }
+  }
+
+  void _goToPreviousDay() =>
+      _loadDayLogs(_viewedDate.subtract(const Duration(days: 1)));
+
+  void _goToNextDay() {
+    if (_isViewingToday) return;
+    _loadDayLogs(_viewedDate.add(const Duration(days: 1)));
+  }
+
+  Future<void> _openEditLogEntryDialog(Map<String, dynamic> entry) async {
+    final servingController = TextEditingController(
+      text: (entry["servingGrams"] as num).round().toString(),
+    );
+    var mealType = entry["mealType"] as String;
+
+    // Returns "save", "delete", or null (cancel/dismiss).
+    final action = await showCupertinoDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => CupertinoAlertDialog(
+          title: Text(entry["foodItem"]["name"] as String),
+          // Material ancestor for the dropdown, which Cupertino dialogs
+          // don't provide on their own.
+          content: Material(
+            type: MaterialType.transparency,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppTextField(
+                    controller: servingController,
+                    keyboardType: TextInputType.number,
+                    placeholder: "Serving size (grams)",
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: mealType,
+                    decoration: const InputDecoration(labelText: "Meal"),
+                    items: mealTypeLabels.entries
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setDialogState(() => mealType = value!),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.of(context).pop("delete"),
+              child: const Text("Delete"),
+            ),
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.of(context).pop("save"),
+              child: const Text("Save"),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (action == null) return;
+
+    try {
+      final token = await _authStorage.readToken();
+      if (action == "delete") {
+        await _apiService.deleteLogEntry(token!, entry["id"] as String);
+      } else {
+        final servingGrams = double.tryParse(servingController.text);
+        if (servingGrams == null || servingGrams <= 0) {
+          if (!mounted) return;
+          AppToast.show(context, "Enter a valid serving size");
+          return;
+        }
+        await _apiService.updateLogEntry(
+          token!,
+          entry["id"] as String,
+          servingGrams: servingGrams,
+          mealType: mealType,
+        );
+      }
+      _loadDayLogs(_viewedDate);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
+    }
+  }
 
   void _switchTab(FoodHubTab tab) {
     setState(() => _tab = tab);
@@ -135,6 +286,7 @@ class FoodHubScreenState extends State<FoodHubScreen> {
         _mealType = "BREAKFAST";
       });
       _loadFoods();
+      _loadDayLogs(_viewedDate);
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {
@@ -158,71 +310,68 @@ class FoodHubScreenState extends State<FoodHubScreen> {
     );
     var photoBase64 = food["photoBase64"] as String?;
 
-    final saved = await showDialog<bool>(
+    final saved = await showCupertinoDialog<bool>(
       context: context,
+      barrierDismissible: true,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) => CupertinoAlertDialog(
           title: const Text("Edit custom food"),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FoodPhotoPicker(
-                  photoBase64: photoBase64,
-                  onChanged: (value) =>
-                      setDialogState(() => photoBase64 = value),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: "Name"),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: caloriesController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Calories per 100g",
+          // Material ancestor for the photo picker, which Cupertino dialogs
+          // don't provide on their own.
+          content: Material(
+            type: MaterialType.transparency,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FoodPhotoPicker(
+                    photoBase64: photoBase64,
+                    onChanged: (value) =>
+                        setDialogState(() => photoBase64 = value),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: proteinController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Protein per 100g (g)",
+                  const SizedBox(height: 12),
+                  AppTextField(controller: nameController, placeholder: "Name"),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: caloriesController,
+                    keyboardType: TextInputType.number,
+                    placeholder: "Calories per 100g",
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: carbsController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Carbs per 100g (g)",
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: proteinController,
+                    keyboardType: TextInputType.number,
+                    placeholder: "Protein per 100g (g)",
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: fatController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Fat per 100g (g)",
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: carbsController,
+                    keyboardType: TextInputType.number,
+                    placeholder: "Carbs per 100g (g)",
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Changing macros will recalculate every past log entry for this food.",
-                  style: TextStyle(fontSize: 12),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: fatController,
+                    keyboardType: TextInputType.number,
+                    placeholder: "Fat per 100g (g)",
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Changing macros will recalculate every past log entry for this food.",
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text("Cancel"),
             ),
-            TextButton(
+            CupertinoDialogAction(
+              isDefaultAction: true,
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text("Save"),
             ),
@@ -270,17 +419,19 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   }
 
   Future<void> _confirmDelete(Map<String, dynamic> food) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
         title: const Text("Delete food?"),
         content: Text('Delete "${food["name"]}"? This can\'t be undone.'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text("Cancel"),
           ),
-          TextButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text("Delete"),
           ),
@@ -305,14 +456,16 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Food")),
+      extendBodyBehindAppBar: true,
       body: BackgroundImageBody(
         imagePath: "assets/img/food.png",
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.fromLTRB(24, 24, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _buildDayLogSection(),
+              const SizedBox(height: 16),
               SegmentedButton<FoodHubTab>(
                 segments: const [
                   ButtonSegment(
@@ -342,6 +495,90 @@ class FoodHubScreenState extends State<FoodHubScreen> {
     );
   }
 
+  // --- Day log (above the sub-tabs) ---
+
+  Widget _buildDayLogSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              onPressed: _isLoadingDay ? null : _goToPreviousDay,
+              icon: const Icon(Icons.chevron_left),
+            ),
+            Expanded(
+              child: Column(
+                children: [
+                  Text(
+                    _dateLabel(_viewedDate),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(
+                    "${(_dayTotals["calories"] as num).round()} kcal · ${(_dayTotals["protein"] as num).round()}g protein",
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: _isLoadingDay || _isViewingToday ? null : _goToNextDay,
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+        if (_isLoadingDay)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_entries.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              _isViewingToday
+                  ? "Nothing logged yet today."
+                  : "Nothing logged this day.",
+              textAlign: TextAlign.center,
+            ),
+          )
+        else
+          // Capped so long days don't crowd out the log/search tabs below.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 180),
+            child: ListView(
+              // Without this the list absorbs the ambient safe-area padding
+              // (app-bar height, since the body extends behind it) as blank
+              // space above the first entry.
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              children: [
+                ..._entries.map(
+                  (entry) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(entry["foodItem"]["name"] as String),
+                    subtitle: Text(
+                      "${entry["mealType"]} · ${(entry["servingGrams"] as num).round()}g",
+                    ),
+                    trailing: Text(
+                      "${(entry["calories"] as num).round()} kcal",
+                    ),
+                    onTap: () => _openEditLogEntryDialog(entry),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
   // --- Log Food sub-tab ---
 
   Widget _buildLogFoodBody() {
@@ -363,9 +600,9 @@ class FoodHubScreenState extends State<FoodHubScreen> {
         Row(
           children: [
             Expanded(
-              child: TextField(
+              child: AppTextField(
                 controller: _searchController,
-                decoration: const InputDecoration(labelText: "Search foods"),
+                placeholder: "Search foods",
                 onChanged: _onSearchChanged,
               ),
             ),
@@ -433,10 +670,10 @@ class FoodHubScreenState extends State<FoodHubScreen> {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 16),
-        TextField(
+        AppTextField(
           controller: _servingController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: "Serving size (grams)"),
+          placeholder: "Serving size (grams)",
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(

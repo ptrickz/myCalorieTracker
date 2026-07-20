@@ -1,6 +1,8 @@
+import "package:flutter/cupertino.dart";
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
+import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
 import "../widgets/background_image_body.dart";
 import "../widgets/seven_day_trend_card.dart";
@@ -14,10 +16,10 @@ class StatusScreen extends StatefulWidget {
   const StatusScreen({super.key});
 
   @override
-  State<StatusScreen> createState() => _StatusScreenState();
+  State<StatusScreen> createState() => StatusScreenState();
 }
 
-class _StatusScreenState extends State<StatusScreen> {
+class StatusScreenState extends State<StatusScreen> {
   final _apiService = ApiService();
   final _authStorage = AuthStorage();
 
@@ -67,22 +69,32 @@ class _StatusScreenState extends State<StatusScreen> {
     }
   }
 
-  Future<void> _openLogWeightDialog() async {
+  /// Public so HomeShell's center FAB can trigger it for this tab.
+  Future<void> openLogWeightDialog() async {
     final controller = TextEditingController();
-    final weightKg = await showDialog<double>(
+    final weightKg = await showCupertinoDialog<double>(
       context: context,
-      builder: (context) => AlertDialog(
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
         title: const Text("Log today's weight"),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: "Weight (kg)"),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: AppTextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            placeholder: "Weight (kg)",
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(double.tryParse(controller.text)),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancel"),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () =>
+                Navigator.of(context).pop(double.tryParse(controller.text)),
             child: const Text("Save"),
           ),
         ],
@@ -104,43 +116,49 @@ class _StatusScreenState extends State<StatusScreen> {
   /// Goals now live on the Profile screen; reload on return in case they
   /// changed.
   Future<void> _openGoals() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
     _load();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Status")),
+      extendBodyBehindAppBar: true,
       body: BackgroundImageBody(
         imagePath: "assets/img/analytics.png",
         child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(24),
-                    children: [
-                      StreakCard(
-                        currentStreak: _currentStreak,
-                        longestStreak: _longestStreak,
-                        loggedToday: _loggedToday,
-                      ),
-                      const SizedBox(height: 16),
-                      SevenDayTrendCard(days: _rangeDays),
-                      const SizedBox(height: 16),
-                      WeightTrendCard(
-                        weightLogs: _weightLogs,
-                        goalWeightKg: _goalWeightKg,
-                        milestoneWeightKg: _milestoneWeightKg,
-                        onEditGoals: _openGoals,
-                        onLogWeight: _openLogWeightDialog,
-                      ),
-                    ],
-                  ),
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+            ? Center(
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red),
                 ),
+              )
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(24, 24, 24, 24),
+                  children: [
+                    StreakCard(
+                      currentStreak: _currentStreak,
+                      longestStreak: _longestStreak,
+                      loggedToday: _loggedToday,
+                    ),
+                    const SizedBox(height: 16),
+                    SevenDayTrendCard(days: _rangeDays),
+                    const SizedBox(height: 16),
+                    WeightTrendCard(
+                      weightLogs: _weightLogs,
+                      goalWeightKg: _goalWeightKg,
+                      milestoneWeightKg: _milestoneWeightKg,
+                      onEditGoals: _openGoals,
+                    ),
+                  ],
+                ),
+              ),
       ),
     );
   }

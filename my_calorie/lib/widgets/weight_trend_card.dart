@@ -6,7 +6,6 @@ class WeightTrendCard extends StatelessWidget {
   final double? goalWeightKg;
   final double? milestoneWeightKg;
   final VoidCallback onEditGoals;
-  final VoidCallback onLogWeight;
 
   const WeightTrendCard({
     super.key,
@@ -14,7 +13,6 @@ class WeightTrendCard extends StatelessWidget {
     required this.goalWeightKg,
     required this.milestoneWeightKg,
     required this.onEditGoals,
-    required this.onLogWeight,
   });
 
   @override
@@ -34,11 +32,6 @@ class WeightTrendCard extends StatelessWidget {
                   onPressed: onEditGoals,
                   icon: const Icon(Icons.flag_outlined),
                   tooltip: "Edit goal weight",
-                ),
-                IconButton(
-                  onPressed: onLogWeight,
-                  icon: const Icon(Icons.add),
-                  tooltip: "Log today's weight",
                 ),
               ],
             ),

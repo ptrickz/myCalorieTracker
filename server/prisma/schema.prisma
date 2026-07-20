@@ -58,6 +58,11 @@ model User {
   milestoneWeightKg Float?
   proteinTargetG    Float?
 
+  // Desired weekly weight-change pace (kg/week, 0.25-1.0 in 0.25 steps).
+  // Drives the calorie adjustment: deficitPerDay = weeklyLossGoalKg * 7700 / 7,
+  // subtracted for LOSE and added for GAIN.
+  weeklyLossGoalKg Float @default(0.5)
+
   // When false (default), weekday and weekend calorie targets are both the
   // auto-calculated TDEE target. When true, the two override fields below
   // are used instead (falling back to the auto target if left unset).

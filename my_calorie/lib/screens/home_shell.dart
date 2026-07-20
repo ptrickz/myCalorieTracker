@@ -25,15 +25,21 @@ class _HomeShellState extends State<HomeShell> {
 
   final _foodHubKey = GlobalKey<FoodHubScreenState>();
   final _workoutKey = GlobalKey<WorkoutScreenState>();
+  final _statusKey = GlobalKey<StatusScreenState>();
   final _foodHubTab = ValueNotifier<FoodHubTab>(FoodHubTab.logFood);
 
   static const _icons = [
     Icons.home_outlined,
     Icons.restaurant_menu_outlined,
-    Icons.fitness_center_outlined,
+    Icons.directions_bike_outlined,
     Icons.insights_outlined,
   ];
-  static const _activeIcons = [Icons.home, Icons.restaurant_menu, Icons.fitness_center, Icons.insights];
+  static const _activeIcons = [
+    Icons.home,
+    Icons.restaurant_menu,
+    Icons.directions_bike,
+    Icons.insights,
+  ];
   static const _labels = ["Home", "Food", "Workout", "Status"];
 
   @override
@@ -50,13 +56,17 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _openScan() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ScanFoodScreen()));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ScanFoodScreen()));
     if (!mounted) return;
     setState(() => _dashboardRefreshKey++);
   }
 
   Future<void> _openCreateFood() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateFoodScreen()));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CreateFoodScreen()));
     if (!mounted) return;
     _foodHubKey.currentState?.refreshAfterCreate();
   }
@@ -88,6 +98,12 @@ class _HomeShellState extends State<HomeShell> {
           tooltip: "Add a session",
           child: const Icon(Icons.add),
         );
+      case 3:
+        return FloatingActionButton(
+          onPressed: () => _statusKey.currentState?.openLogWeightDialog(),
+          tooltip: "Log today's weight",
+          child: const Icon(Icons.monitor_weight_outlined),
+        );
       default:
         return null;
     }
@@ -97,9 +113,12 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final tabs = [
       DashboardScreen(key: ValueKey(_dashboardRefreshKey)),
-      FoodHubScreen(key: _foodHubKey, onSubTabChanged: (tab) => _foodHubTab.value = tab),
+      FoodHubScreen(
+        key: _foodHubKey,
+        onSubTabChanged: (tab) => _foodHubTab.value = tab,
+      ),
       WorkoutScreen(key: _workoutKey),
-      const StatusScreen(),
+      StatusScreen(key: _statusKey),
     ];
 
     return Scaffold(
@@ -109,8 +128,16 @@ class _HomeShellState extends State<HomeShell> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 24, offset: const Offset(0, -6)),
-            BoxShadow(color: AppColors.accent.withValues(alpha: 0.06), blurRadius: 40, offset: const Offset(0, -10)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              blurRadius: 24,
+              offset: const Offset(0, -6),
+            ),
+            BoxShadow(
+              color: AppColors.accent.withValues(alpha: 0.06),
+              blurRadius: 40,
+              offset: const Offset(0, -10),
+            ),
           ],
         ),
         child: AnimatedBottomNavigationBar.builder(
@@ -130,11 +157,19 @@ class _HomeShellState extends State<HomeShell> {
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(isActive ? _activeIcons[index] : _icons[index], size: 24, color: color),
+                Icon(
+                  isActive ? _activeIcons[index] : _icons[index],
+                  size: 24,
+                  color: color,
+                ),
                 const SizedBox(height: 4),
                 Text(
                   _labels[index],
-                  style: TextStyle(fontSize: 11, color: color, fontWeight: isActive ? FontWeight.w600 : FontWeight.w400),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: color,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                  ),
                 ),
               ],
             );

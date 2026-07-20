@@ -3,6 +3,9 @@ import "package:flutter/material.dart";
 class AppColors {
   static const background = Color(0xFF0D0D0D);
   static const surface = Color(0xFF1A1A1A);
+  // Translucent surface for cards, so the full-bleed background photos
+  // behind screen bodies stay visible through them (0x99 ≈ 60% opacity).
+  static const surfaceGlass = Color(0x991A1A1A);
   static const surfaceAlt = Color(0xFF232323);
   static const accent = Color(0xFFC6FF3D);
   static const textPrimary = Color(0xFFFFFFFF);
@@ -40,16 +43,20 @@ ThemeData buildAppTheme() {
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.accent),
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.background,
+      // Transparent so the full-bleed background photos show through; pages
+      // with a photo set extendBodyBehindAppBar and pad their content down.
+      backgroundColor: Colors.transparent,
       foregroundColor: AppColors.textPrimary,
       elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: true,
     ),
     textTheme: base.textTheme.apply(
       bodyColor: AppColors.textPrimary,
       displayColor: AppColors.textPrimary,
     ),
     cardTheme: const CardThemeData(
-      color: AppColors.surface,
+      color: AppColors.surfaceGlass,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
     ),

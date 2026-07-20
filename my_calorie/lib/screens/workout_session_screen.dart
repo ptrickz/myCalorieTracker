@@ -1,9 +1,11 @@
 import "dart:async";
+import "package:flutter/cupertino.dart";
 import "package:flutter/material.dart";
 import "package:url_launcher/url_launcher.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../theme.dart";
+import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
 
 class WorkoutSessionScreen extends StatefulWidget {
@@ -63,36 +65,49 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
 
     String? selectedId;
 
-    final result = await showDialog<String>(
+    final result = await showCupertinoDialog<String>(
       context: context,
+      barrierDismissible: true,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) => CupertinoAlertDialog(
           title: const Text("Add exercise"),
-          content: DropdownButtonFormField<String>(
-            initialValue: selectedId,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: "Exercise"),
-            items: [
-              ...all.map(
-                (e) => DropdownMenuItem(
-                  value: e["id"] as String,
-                  child: Text(e["name"] as String, overflow: TextOverflow.ellipsis),
-                ),
+          // Material ancestor for the dropdown, which Cupertino dialogs
+          // don't provide on their own.
+          content: Material(
+            type: MaterialType.transparency,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: DropdownButtonFormField<String>(
+                initialValue: selectedId,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: "Exercise"),
+                items: [
+                  ...all.map(
+                    (e) => DropdownMenuItem(
+                      value: e["id"] as String,
+                      child: Text(e["name"] as String, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                  const DropdownMenuItem(
+                    value: _createNewSentinel,
+                    child: Text(
+                      "+ Create new custom exercise",
+                      style: TextStyle(color: AppColors.accent),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+                onChanged: (value) => setDialogState(() => selectedId = value),
               ),
-              const DropdownMenuItem(
-                value: _createNewSentinel,
-                child: Text(
-                  "+ Create new custom exercise",
-                  style: TextStyle(color: AppColors.accent),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-            onChanged: (value) => setDialogState(() => selectedId = value),
+            ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
-            TextButton(
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
               onPressed: selectedId == null ? null : () => Navigator.of(context).pop(selectedId),
               child: const Text("Add"),
             ),
@@ -119,31 +134,42 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     final videoController = TextEditingController();
     final imageController = TextEditingController();
 
-    final name = await showDialog<String>(
+    final name = await showCupertinoDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
         title: const Text("New exercise"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, autofocus: true, decoration: const InputDecoration(labelText: "Name")),
-            const SizedBox(height: 12),
-            TextField(
-              controller: videoController,
-              decoration: const InputDecoration(labelText: "Video URL (optional)"),
-              keyboardType: TextInputType.url,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: imageController,
-              decoration: const InputDecoration(labelText: "Image URL (optional)"),
-              keyboardType: TextInputType.url,
-            ),
-          ],
+        content: Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppTextField(controller: nameController, autofocus: true, placeholder: "Name"),
+              const SizedBox(height: 12),
+              AppTextField(
+                controller: videoController,
+                placeholder: "Video URL (optional)",
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 12),
+              AppTextField(
+                controller: imageController,
+                placeholder: "Image URL (optional)",
+                keyboardType: TextInputType.url,
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.of(context).pop(nameController.text.trim()), child: const Text("Add")),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancel"),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(nameController.text.trim()),
+            child: const Text("Add"),
+          ),
         ],
       ),
     );
@@ -360,27 +386,27 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                   const SizedBox(height: 8),
                 ],
                 if (_isTimed)
-                  TextField(
+                  AppTextField(
                     controller: _durationController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Duration (sec)"),
+                    placeholder: "Duration (sec)",
                   )
                 else
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: AppTextField(
                           controller: _repsController,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: "Reps"),
+                          placeholder: "Reps",
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
+                        child: AppTextField(
                           controller: _weightController,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: "Weight (kg)"),
+                          placeholder: "Weight (kg)",
                         ),
                       ),
                     ],

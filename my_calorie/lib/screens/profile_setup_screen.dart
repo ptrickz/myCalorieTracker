@@ -1,6 +1,9 @@
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
+import "../utils/tdee_calc.dart";
+import "../widgets/app_text_field.dart";
+import "../widgets/weekly_loss_goal_slider.dart";
 import "home_shell.dart";
 
 class ProfileSetupScreen extends StatefulWidget {
@@ -20,6 +23,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   String? _sex;
   String? _activityLevel;
   String? _goalType;
+  double _weeklyLossGoalKg = 0.5;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -71,6 +75,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         activityLevel: _activityLevel!,
         goalType: _goalType!,
         weightKg: double.parse(_weightController.text),
+        weeklyLossGoalKg: _weeklyLossGoalKg,
       );
       if (!mounted) return;
       // pushAndRemoveUntil, not pushReplacement — clears Welcome/Login out of
@@ -112,17 +117,17 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             onChanged: (value) => setState(() => _sex = value),
           ),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
             controller: _heightController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: "Height (cm)"),
+            placeholder: "Height (cm)",
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
             controller: _weightController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: "Current weight (kg)"),
+            placeholder: "Current weight (kg)",
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -143,6 +148,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 .toList(),
             onChanged: (value) => setState(() => _goalType = value),
           ),
+          if (_goalType == "LOSE" || _goalType == "GAIN") ...[
+            const SizedBox(height: 16),
+            WeeklyLossGoalSlider(
+              value: _weeklyLossGoalKg,
+              isGain: _goalType == "GAIN",
+              previewTargetCalories: estimateDailyTargetCalories(
+                weightKg: double.tryParse(_weightController.text),
+                heightCm: double.tryParse(_heightController.text),
+                dateOfBirth: _dateOfBirth,
+                sex: _sex,
+                activityLevel: _activityLevel,
+                goalType: _goalType,
+                weeklyLossGoalKg: _weeklyLossGoalKg,
+              ),
+              onChanged: (value) => setState(() => _weeklyLossGoalKg = value),
+            ),
+          ],
           const SizedBox(height: 24),
           if (_errorMessage != null)
             Padding(

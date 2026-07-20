@@ -15,6 +15,7 @@ const PROFILE_SELECT = {
   goalWeightKg: true,
   milestoneWeightKg: true,
   proteinTargetG: true,
+  weeklyLossGoalKg: true,
   useCustomCalorieTargets: true,
   weekdayTargetCalories: true,
   weekendTargetCalories: true,
@@ -43,6 +44,7 @@ async function buildProfileResponse(user) {
       sex: user.sex,
       activityLevel: user.activityLevel,
       goalType: user.goalType,
+      weeklyLossGoalKg: user.weeklyLossGoalKg,
     });
   }
 
@@ -89,6 +91,7 @@ router.patch("/", async (req, res) => {
     goalWeightKg,
     milestoneWeightKg,
     proteinTargetG,
+    weeklyLossGoalKg,
     useCustomCalorieTargets,
     weekdayTargetCalories,
     weekendTargetCalories,
@@ -103,6 +106,12 @@ router.patch("/", async (req, res) => {
   if (goalWeightKg !== undefined) data.goalWeightKg = goalWeightKg;
   if (milestoneWeightKg !== undefined) data.milestoneWeightKg = milestoneWeightKg;
   if (proteinTargetG !== undefined) data.proteinTargetG = proteinTargetG;
+  if (weeklyLossGoalKg !== undefined) {
+    if (typeof weeklyLossGoalKg !== "number" || weeklyLossGoalKg < 0.25 || weeklyLossGoalKg > 1.0) {
+      return res.status(400).json({ error: "weeklyLossGoalKg must be between 0.25 and 1.0" });
+    }
+    data.weeklyLossGoalKg = weeklyLossGoalKg;
+  }
   if (useCustomCalorieTargets !== undefined) data.useCustomCalorieTargets = useCustomCalorieTargets;
   if (weekdayTargetCalories !== undefined) data.weekdayTargetCalories = weekdayTargetCalories;
   if (weekendTargetCalories !== undefined) data.weekendTargetCalories = weekendTargetCalories;

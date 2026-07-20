@@ -12,7 +12,7 @@ class MacroStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: AppColors.surfaceGlass, borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
           Row(

@@ -6,11 +6,17 @@ const ACTIVITY_MULTIPLIERS = {
   VERY_ACTIVE: 1.9,
 };
 
-const GOAL_ADJUSTMENT_KCAL = {
-  LOSE: -500,
-  MAINTAIN: 0,
-  GAIN: 500,
-};
+// ~7700 kcal per kg of body fat. The user's weekly pace (kg/week) converts
+// to a daily calorie adjustment: subtracted for LOSE, added for GAIN.
+const KCAL_PER_KG = 7700;
+const DEFAULT_WEEKLY_CHANGE_KG = 0.5;
+
+function dailyAdjustmentKcal(goalType, weeklyLossGoalKg) {
+  if (goalType === "MAINTAIN") return 0;
+  const weeklyKg = weeklyLossGoalKg ?? DEFAULT_WEEKLY_CHANGE_KG;
+  const perDay = (weeklyKg * KCAL_PER_KG) / 7;
+  return goalType === "LOSE" ? -perDay : perDay;
+}
 
 function ageFromDateOfBirth(dateOfBirth) {
   const now = new Date();
@@ -28,11 +34,11 @@ function calculateBmr({ weightKg, heightCm, age, sex }) {
   return sex === "MALE" ? base + 5 : base - 161;
 }
 
-function calculateTdee({ weightKg, heightCm, dateOfBirth, sex, activityLevel, goalType }) {
+function calculateTdee({ weightKg, heightCm, dateOfBirth, sex, activityLevel, goalType, weeklyLossGoalKg }) {
   const age = ageFromDateOfBirth(dateOfBirth);
   const bmr = calculateBmr({ weightKg, heightCm, age, sex });
   const maintenanceTdee = bmr * ACTIVITY_MULTIPLIERS[activityLevel];
-  const targetCalories = maintenanceTdee + GOAL_ADJUSTMENT_KCAL[goalType];
+  const targetCalories = maintenanceTdee + dailyAdjustmentKcal(goalType, weeklyLossGoalKg);
   return { maintenanceTdee, targetCalories };
 }
 

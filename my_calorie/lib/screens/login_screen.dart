@@ -3,6 +3,7 @@ import "../services/api_service.dart";
 import "../services/auth_storage.dart";
 import "../theme.dart";
 import "../widgets/app_logo.dart";
+import "../widgets/app_text_field.dart";
 import "../widgets/primary_button.dart";
 import "../widgets/background_image_body.dart";
 import "root_screen.dart";
@@ -92,15 +93,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                TextField(
+                AppTextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    hintText: "Enter your email address...",
-                    prefixIcon: Icon(
-                      Icons.mail_outline,
-                      color: AppColors.textSecondary,
-                    ),
+                  placeholder: "Enter your email address...",
+                  prefix: const Icon(
+                    Icons.mail_outline,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -128,25 +127,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                TextField(
+                AppTextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    hintText: "Enter your password...",
-                    prefixIcon: const Icon(
-                      Icons.lock_outline,
+                  placeholder: "Enter your password...",
+                  prefix: const Icon(
+                    Icons.lock_outline,
+                    color: AppColors.textSecondary,
+                  ),
+                  suffix: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       color: AppColors.textSecondary,
                     ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: AppColors.textSecondary,
-                      ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
                 const SizedBox(height: 12),

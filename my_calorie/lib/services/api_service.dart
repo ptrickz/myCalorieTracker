@@ -72,6 +72,7 @@ class ApiService {
     required String activityLevel,
     required String goalType,
     double? weightKg,
+    double? weeklyLossGoalKg,
   }) async {
     final response = await http.patch(
       Uri.parse("$apiBaseUrl/profile"),
@@ -83,6 +84,7 @@ class ApiService {
         "activityLevel": activityLevel,
         "goalType": goalType,
         "weightKg": ?weightKg,
+        "weeklyLossGoalKg": ?weeklyLossGoalKg,
       }),
     );
 
@@ -334,6 +336,7 @@ class ApiService {
     double? goalWeightKg,
     double? milestoneWeightKg,
     double? proteinTargetG,
+    double? weeklyLossGoalKg,
     bool? useCustomCalorieTargets,
     double? weekdayTargetCalories,
     double? weekendTargetCalories,
@@ -345,6 +348,7 @@ class ApiService {
         "goalWeightKg": ?goalWeightKg,
         "milestoneWeightKg": ?milestoneWeightKg,
         "proteinTargetG": ?proteinTargetG,
+        "weeklyLossGoalKg": ?weeklyLossGoalKg,
         "useCustomCalorieTargets": ?useCustomCalorieTargets,
         "weekdayTargetCalories": ?weekdayTargetCalories,
         "weekendTargetCalories": ?weekendTargetCalories,

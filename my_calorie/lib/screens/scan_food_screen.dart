@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "package:image_picker/image_picker.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
+import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
 import "../constants.dart";
 import "../theme.dart";
@@ -34,6 +35,16 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
   final _servingController = TextEditingController(text: "100");
   String _mealType = "BREAKFAST";
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Jump straight into the camera on entry; the Camera/Gallery buttons
+    // remain as the fallback if the user cancels the shot.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _imageBytes == null) _pickPhoto(ImageSource.camera);
+    });
+  }
 
   String _guessMediaType(XFile file) {
     if (file.mimeType != null) return file.mimeType!;
@@ -177,10 +188,11 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
               ButtonSegment(value: "plate", label: Text("Plate / Meal"), icon: Icon(Icons.restaurant)),
             ],
             selected: {_mode},
+            // The photo is mode-independent (only analysis differs), so keep
+            // it when toggling — just drop any result from the other mode.
             onSelectionChanged: (selection) {
               setState(() {
                 _mode = selection.first;
-                _imageBytes = null;
                 _result = null;
                 _errorMessage = null;
               });
@@ -304,29 +316,29 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
           const SizedBox(height: 16),
           Text("Review and adjust before saving", style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 12),
-          TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Name")),
+          AppTextField(controller: _nameController, placeholder: "Name"),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
             controller: _servingController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: "Serving size (grams)"),
+            placeholder: "Serving size (grams)",
           ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: TextField(
+                child: AppTextField(
                   controller: _caloriesController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "kcal / 100g"),
+                  placeholder: "kcal / 100g",
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: TextField(
+                child: AppTextField(
                   controller: _proteinController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Protein / 100g"),
+                  placeholder: "Protein / 100g",
                 ),
               ),
             ],
@@ -335,18 +347,18 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
           Row(
             children: [
               Expanded(
-                child: TextField(
+                child: AppTextField(
                   controller: _carbsController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Carbs / 100g"),
+                  placeholder: "Carbs / 100g",
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: TextField(
+                child: AppTextField(
                   controller: _fatController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Fat / 100g"),
+                  placeholder: "Fat / 100g",
                 ),
               ),
             ],
