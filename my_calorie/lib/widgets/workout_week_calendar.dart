@@ -68,7 +68,7 @@ class _WorkoutWeekCalendarState extends State<WorkoutWeekCalendar> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        height: 200,
+        height: 300,
         child: WeekView(
           controller: _controller,
           initialDay: DateTime.now(),

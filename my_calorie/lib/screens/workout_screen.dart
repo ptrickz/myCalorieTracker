@@ -214,21 +214,8 @@ class WorkoutScreenState extends State<WorkoutScreen> {
                       ),
                       const SizedBox(height: 8),
                       WorkoutWeekCalendar(logs: _recentLogs),
+
                       const SizedBox(height: 12),
-                      ..._todaysExercises.map(_buildExercisePreview),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: _isStarting ? null : _startTodaysWorkout,
-                        child: _isStarting
-                            ? const SizedBox(
-                                height: 16,
-                                width: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text("Start Workout"),
-                      ),
                     ] else ...[
                       Card(
                         child: Padding(
@@ -237,13 +224,7 @@ class WorkoutScreenState extends State<WorkoutScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: _isStarting ? null : _startFreeSession,
-                      child: const Text(
-                        "Log a different session (gym, sport, ...)",
-                      ),
-                    ),
+
                     const SizedBox(height: 24),
                     Text(
                       "This week",
