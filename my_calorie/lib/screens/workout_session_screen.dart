@@ -23,6 +23,10 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   final _authStorage = AuthStorage();
 
   late List<Map<String, dynamic>> _exercises;
+  // exerciseId -> sets already logged in this session (loaded from the server
+  // when re-opening a past session so they can be viewed and edited).
+  Map<String, List<Map<String, dynamic>>> _existingSets = {};
+  bool _isLoading = true;
   Timer? _restTimer;
   int _restSecondsLeft = 0;
 
@@ -30,6 +34,37 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   void initState() {
     super.initState();
     _exercises = List.of(widget.initialExercises);
+    _loadSession();
+  }
+
+  /// Loads any sets already logged against this session so re-opening a past
+  /// session shows its contents. Exercises with existing sets are merged in
+  /// on top of whatever was passed in (e.g. today's plan).
+  Future<void> _loadSession() async {
+    try {
+      final token = await _authStorage.readToken();
+      final log = await _apiService.getWorkoutLog(token!, widget.workoutLogId);
+      final sets = (log["sets"] as List).cast<Map<String, dynamic>>();
+
+      final byExercise = <String, List<Map<String, dynamic>>>{};
+      final exercises = List<Map<String, dynamic>>.of(_exercises);
+      for (final set in sets) {
+        final exercise = set["exercise"] as Map<String, dynamic>;
+        final id = exercise["id"] as String;
+        byExercise.putIfAbsent(id, () => []).add(set);
+        if (!exercises.any((e) => e["id"] == id)) exercises.add(exercise);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _existingSets = byExercise;
+        _exercises = exercises;
+      });
+    } catch (e) {
+      if (mounted) AppToast.show(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -204,32 +239,35 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (_restSecondsLeft > 0) _buildRestBanner(),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
               children: [
-                ..._exercises.map(
-                  (e) => _ExerciseLogCard(
-                    key: ValueKey(e["id"]),
-                    exercise: e,
-                    workoutLogId: widget.workoutLogId,
-                    onSetLogged: () => _startRestTimer(),
+                if (_restSecondsLeft > 0) _buildRestBanner(),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      ..._exercises.map(
+                        (e) => _ExerciseLogCard(
+                          key: ValueKey(e["id"]),
+                          exercise: e,
+                          workoutLogId: widget.workoutLogId,
+                          initialSets: _existingSets[e["id"]] ?? const [],
+                          onSetLogged: () => _startRestTimer(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _addExercise,
+                        icon: const Icon(Icons.add),
+                        label: const Text("Add exercise"),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _addExercise,
-                  icon: const Icon(Icons.add),
-                  label: const Text("Add exercise"),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -252,9 +290,16 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
 class _ExerciseLogCard extends StatefulWidget {
   final Map<String, dynamic> exercise;
   final String workoutLogId;
+  final List<Map<String, dynamic>> initialSets;
   final VoidCallback onSetLogged;
 
-  const _ExerciseLogCard({super.key, required this.exercise, required this.workoutLogId, required this.onSetLogged});
+  const _ExerciseLogCard({
+    super.key,
+    required this.exercise,
+    required this.workoutLogId,
+    required this.onSetLogged,
+    this.initialSets = const [],
+  });
 
   @override
   State<_ExerciseLogCard> createState() => _ExerciseLogCardState();
@@ -267,11 +312,19 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
   final _weightController = TextEditingController();
   final _durationController = TextEditingController();
 
-  List<Map<String, dynamic>> _loggedSets = [];
+  late List<Map<String, dynamic>> _loggedSets = List.of(widget.initialSets);
   Map<String, dynamic>? _progression;
   bool _isLogging = false;
 
   bool get _isTimed => (widget.exercise["defaultReps"] as String?)?.contains("sec") ?? false;
+
+  // One past the highest set number so deleting a middle set doesn't cause the
+  // next one to reuse a number.
+  int get _nextSetNumber => _loggedSets.fold<int>(0, (max, s) {
+        final n = (s["setNumber"] as num?)?.toInt() ?? 0;
+        return n > max ? n : max;
+      }) +
+      1;
 
   @override
   void dispose() {
@@ -308,7 +361,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
         token!,
         widget.workoutLogId,
         exerciseId: widget.exercise["id"] as String,
-        setNumber: _loggedSets.length + 1,
+        setNumber: _nextSetNumber,
         reps: _isTimed ? null : int.tryParse(_repsController.text),
         weightKg: _isTimed ? null : double.tryParse(_weightController.text),
         durationSeconds: _isTimed ? int.tryParse(_durationController.text) : null,
@@ -321,6 +374,22 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
       AppToast.show(context, e.toString());
     } finally {
       if (mounted) setState(() => _isLogging = false);
+    }
+  }
+
+  Future<void> _deleteSet(Map<String, dynamic> set) async {
+    // Sets logged in a previous session have a server id; a set just added in
+    // this view also has one (returned by addWorkoutSet).
+    final setId = set["id"] as String?;
+    if (setId == null) return;
+    try {
+      final token = await _authStorage.readToken();
+      await _apiService.deleteWorkoutSet(token!, widget.workoutLogId, setId);
+      if (!mounted) return;
+      setState(() => _loggedSets = _loggedSets.where((s) => s["id"] != setId).toList());
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
     }
   }
 
@@ -416,12 +485,24 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                   onPressed: _isLogging ? null : _logSet,
                   child: _isLogging
                       ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text("Log Set ${_loggedSets.length + 1}"),
+                      : Text("Log Set $_nextSetNumber"),
                 ),
                 if (_loggedSets.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ..._loggedSets.map(
-                    (s) => Text(_formatSet(s), style: const TextStyle(color: AppColors.textSecondary)),
+                    (s) => Row(
+                      children: [
+                        Expanded(
+                          child: Text(_formatSet(s), style: const TextStyle(color: AppColors.textSecondary)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          tooltip: "Delete set",
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => _deleteSet(s),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ],

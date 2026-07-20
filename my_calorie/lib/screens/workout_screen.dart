@@ -339,12 +339,27 @@ class WorkoutScreenState extends State<WorkoutScreen> {
       subtitle: Text(
         exerciseNames.isEmpty ? "No sets logged" : exerciseNames.join(", "),
       ),
+      onTap: () => _openSession(log),
       trailing: IconButton(
         icon: const Icon(Icons.delete_outline),
         tooltip: "Delete session",
         onPressed: () => _confirmDeleteSession(log),
       ),
     );
+  }
+
+  /// Re-open a past session so it can be edited (add exercises, log or delete
+  /// sets). The session screen loads its existing contents on open.
+  Future<void> _openSession(Map<String, dynamic> log) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WorkoutSessionScreen(
+          workoutLogId: log["id"] as String,
+          initialExercises: const [],
+        ),
+      ),
+    );
+    _load();
   }
 
   Future<void> _confirmDeleteSession(Map<String, dynamic> log) async {

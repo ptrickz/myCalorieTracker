@@ -485,6 +485,17 @@ class ApiService {
     }
   }
 
+  Future<void> deleteWorkoutSet(String token, String workoutLogId, String setId) async {
+    final response = await http.delete(
+      Uri.parse("$apiBaseUrl/workout-logs/$workoutLogId/sets/$setId"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 204) {
+      throw ApiException(_extractError(response, "Could not delete this set"));
+    }
+  }
+
   Map<String, String> _authHeaders(String token, {bool withJson = false}) {
     return {
       "Authorization": "Bearer $token",
