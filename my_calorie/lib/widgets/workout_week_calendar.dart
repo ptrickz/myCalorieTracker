@@ -13,13 +13,32 @@ class WorkoutWeekCalendar extends StatefulWidget {
   State<WorkoutWeekCalendar> createState() => _WorkoutWeekCalendarState();
 }
 
+// Kept in sync between the WeekView config and the initial-scroll math.
+const _calStartHour = 5;
+const _calEndHour = 24;
+const _calHeightPerMinute = 0.5;
+
 class _WorkoutWeekCalendarState extends State<WorkoutWeekCalendar> {
   final _controller = EventController();
+
+  // Computed once so rebuilds (e.g. when logs reload) don't snap the view
+  // back and fight the user's own scrolling.
+  late final double _initialScrollOffset = _computeInitialScrollOffset();
 
   @override
   void initState() {
     super.initState();
     _syncEvents();
+  }
+
+  /// Vertical offset that brings "now" into view with a little context above
+  /// it. The time axis maps minutes-since-startHour to pixels via
+  /// heightPerMinute, so we invert that and back off ~2.5h.
+  double _computeInitialScrollOffset() {
+    final now = DateTime.now();
+    final minutesSinceStart = (now.hour - _calStartHour) * 60 + now.minute;
+    final offset = minutesSinceStart * _calHeightPerMinute - 80;
+    return offset < 0 ? 0 : offset;
   }
 
   @override
@@ -72,11 +91,12 @@ class _WorkoutWeekCalendarState extends State<WorkoutWeekCalendar> {
         child: WeekView(
           controller: _controller,
           initialDay: DateTime.now(),
+          scrollOffset: _initialScrollOffset,
           showLiveTimeLineInAllDays: true,
           startDay: WeekDays.monday,
-          startHour: 5,
-          endHour: 24,
-          heightPerMinute: 0.5,
+          startHour: _calStartHour,
+          endHour: _calEndHour,
+          heightPerMinute: _calHeightPerMinute,
           backgroundColor: Colors.transparent,
           weekTitleBackgroundColor: Colors.transparent,
           headerStyle: const HeaderStyle(
