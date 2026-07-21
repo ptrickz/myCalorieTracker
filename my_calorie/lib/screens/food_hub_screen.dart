@@ -11,6 +11,7 @@ import "../widgets/app_toast.dart";
 import "../widgets/background_image_body.dart";
 import "../widgets/food_photo_picker.dart";
 import "../widgets/photo_viewer.dart";
+import "scan_food_screen.dart";
 
 enum FoodHubTab { logFood, customFood }
 
@@ -321,6 +322,17 @@ class FoodHubScreenState extends State<FoodHubScreen> {
     }
   }
 
+  /// Scanning is also on the centre FAB, but it belongs next to search too —
+  /// it's the other way you add a food you haven't logged before.
+  Future<void> _openScan() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ScanFoodScreen()),
+    );
+    if (!mounted) return;
+    _loadFoods();
+    _loadDayLogs(_viewedDate);
+  }
+
   String _relativeDayLabel(String isoDate) {
     final date = DateTime.parse(isoDate);
     final today = DateTime.now();
@@ -601,8 +613,6 @@ class FoodHubScreenState extends State<FoodHubScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildDayLogSection(),
-              const SizedBox(height: 16),
               SegmentedButton<FoodHubTab>(
                 segments: const [
                   ButtonSegment(
@@ -625,6 +635,10 @@ class FoodHubScreenState extends State<FoodHubScreen> {
                     ? _buildLogFoodBody()
                     : _buildCustomFoodBody(),
               ),
+              // Finding/scanning food is the reason you're here; reviewing what
+              // you've already eaten sits underneath it.
+              const SizedBox(height: 8),
+              _buildDayLogSection(),
             ],
           ),
         ),
@@ -761,6 +775,11 @@ class FoodHubScreenState extends State<FoodHubScreen> {
             IconButton(
               onPressed: () => _loadFoods(_searchController.text),
               icon: const Icon(Icons.search),
+            ),
+            IconButton(
+              onPressed: _openScan,
+              tooltip: "Scan a label or plate",
+              icon: const Icon(Icons.camera_alt_outlined, color: AppColors.accent),
             ),
           ],
         ),
