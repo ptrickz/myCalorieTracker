@@ -274,6 +274,37 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  /// Past days that have entries for [mealType], newest first — the source
+  /// list for repeating a previous meal.
+  Future<List<Map<String, dynamic>>> getRecentMeals(String token, String mealType) async {
+    final response = await http.get(
+      Uri.parse("$apiBaseUrl/logs/recent-meals?mealType=$mealType"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load previous meals"));
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return (data["meals"] as List).cast<Map<String, dynamic>>();
+  }
+
+  /// Copies a past day's meal onto today. Returns how many entries were added.
+  Future<int> repeatMeal(String token, {required String date, required String mealType}) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/logs/repeat-meal"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({"date": date, "mealType": mealType}),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(_extractError(response, "Could not repeat this meal"));
+    }
+
+    return (jsonDecode(response.body) as Map<String, dynamic>)["created"] as int;
+  }
+
   Future<Map<String, dynamic>> getStreak(String token) async {
     final response = await http.get(
       Uri.parse("$apiBaseUrl/logs/streak"),

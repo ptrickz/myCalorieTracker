@@ -113,6 +113,97 @@ router.get("/range", async (req, res) => {
   res.json({ days: result });
 });
 
+// Past days that have entries for a given meal, newest first — the source
+// list for "repeat a previous meal".
+router.get("/recent-meals", async (req, res) => {
+  const mealType = req.query.mealType;
+  if (!mealType) {
+    return res.status(400).json({ error: "mealType is required" });
+  }
+  const limit = Math.min(Math.max(Number(req.query.limit) || 5, 1), 20);
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  // Look back far enough to fill `limit` days for someone who logs sparsely.
+  const entries = await prisma.logEntry.findMany({
+    where: {
+      userId: req.userId,
+      mealType,
+      loggedAt: { gte: addDays(today, -60), lt: today },
+    },
+    orderBy: { loggedAt: "desc" },
+    include: { foodItem: { select: { name: true } } },
+  });
+
+  const byDay = new Map();
+  for (const entry of entries) {
+    const key = dateKey(entry.loggedAt);
+    if (!byDay.has(key)) {
+      byDay.set(key, { date: key, calories: 0, protein: 0, entries: [] });
+    }
+    const day = byDay.get(key);
+    day.calories += entry.calories;
+    day.protein += entry.protein;
+    day.entries.push({
+      foodItemId: entry.foodItemId,
+      name: entry.foodItem.name,
+      servingGrams: entry.servingGrams,
+    });
+  }
+
+  res.json({ meals: [...byDay.values()].slice(0, limit) });
+});
+
+// Copies a past day's meal onto today. Macros are recomputed from each food's
+// current per-100g values rather than copied, so an edited food stays correct.
+router.post("/repeat-meal", async (req, res) => {
+  const { date, mealType } = req.body;
+
+  if (!date || !mealType) {
+    return res.status(400).json({ error: "date and mealType are required" });
+  }
+
+  const { start, end } = dayBounds(date);
+  const source = await prisma.logEntry.findMany({
+    where: { userId: req.userId, mealType, loggedAt: { gte: start, lt: end } },
+  });
+
+  if (source.length === 0) {
+    return res.status(404).json({ error: "No entries found for that meal" });
+  }
+
+  const foodItems = await prisma.foodItem.findMany({
+    where: { id: { in: [...new Set(source.map((e) => e.foodItemId))] } },
+  });
+  const foodById = new Map(foodItems.map((f) => [f.id, f]));
+
+  const now = new Date();
+  const created = await prisma.$transaction(
+    source.flatMap((entry) => {
+      const food = foodById.get(entry.foodItemId);
+      // Skip anything whose food has since been deleted.
+      if (!food) return [];
+      const scale = entry.servingGrams / 100;
+      return prisma.logEntry.create({
+        data: {
+          userId: req.userId,
+          foodItemId: entry.foodItemId,
+          servingGrams: entry.servingGrams,
+          mealType,
+          loggedAt: now,
+          calories: food.caloriesPer100g * scale,
+          protein: food.proteinPer100g * scale,
+          carbs: food.carbsPer100g * scale,
+          fat: food.fatPer100g * scale,
+        },
+      });
+    }),
+  );
+
+  res.status(201).json({ created: created.length });
+});
+
 router.post("/", async (req, res) => {
   const { foodItemId, servingGrams, mealType, loggedAt } = req.body;
 

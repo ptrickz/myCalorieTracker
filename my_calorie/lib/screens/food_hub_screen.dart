@@ -52,6 +52,9 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   // Id of the food currently being one-tap logged, so its row can show a
   // spinner and repeat taps are ignored.
   String? _quickLoggingFoodId;
+  // Past days that have the selected meal, so "repeat" only appears when
+  // there's actually something to repeat.
+  List<Map<String, dynamic>> _recentMeals = const [];
   String? _errorMessage;
   Timer? _debounce;
 
@@ -90,6 +93,18 @@ class FoodHubScreenState extends State<FoodHubScreen> {
     _loadFoods();
     _loadCustomFoods();
     _loadDayLogs(DateTime.now());
+    _loadRecentMeals();
+  }
+
+  Future<void> _loadRecentMeals() async {
+    try {
+      final token = await _authStorage.readToken();
+      final meals = await _apiService.getRecentMeals(token!, _mealType);
+      if (mounted) setState(() => _recentMeals = meals);
+    } catch (_) {
+      // Repeating is a convenience — if it can't load, just hide the button.
+      if (mounted) setState(() => _recentMeals = const []);
+    }
   }
 
   @override
@@ -303,6 +318,81 @@ class FoodHubScreenState extends State<FoodHubScreen> {
       setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isLogging = false);
+    }
+  }
+
+  String _relativeDayLabel(String isoDate) {
+    final date = DateTime.parse(isoDate);
+    final today = DateTime.now();
+    final days = DateTime(today.year, today.month, today.day)
+        .difference(DateTime(date.year, date.month, date.day))
+        .inDays;
+    if (days == 1) return "Yesterday";
+    if (days < 7) return "$days days ago";
+    return isoDate;
+  }
+
+  /// Copies a whole past meal onto today in one tap — the common case for
+  /// anyone who eats much the same breakfast every day.
+  Future<void> _openRepeatMealPicker() async {
+    final label = mealTypeLabels[_mealType]!;
+    final picked = await showCupertinoDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text("Repeat a previous $label"),
+        content: Material(
+          type: MaterialType.transparency,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _recentMeals.map((meal) {
+                final names = (meal["entries"] as List)
+                    .cast<Map<String, dynamic>>()
+                    .map((e) => e["name"] as String)
+                    .join(", ");
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    "${_relativeDayLabel(meal["date"] as String)} · "
+                    "${(meal["calories"] as num).round()} kcal",
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    names,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onTap: () => Navigator.of(context).pop(meal["date"] as String),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancel"),
+          ),
+        ],
+      ),
+    );
+
+    if (picked == null) return;
+
+    try {
+      final token = await _authStorage.readToken();
+      final created = await _apiService.repeatMeal(token!, date: picked, mealType: _mealType);
+      if (!mounted) return;
+      AppToast.show(context, "Added $created item${created == 1 ? "" : "s"} to $label");
+      _loadFoods();
+      _loadDayLogs(_viewedDate);
+      _loadRecentMeals();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
     }
   }
 
@@ -645,6 +735,19 @@ class FoodHubScreenState extends State<FoodHubScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildMealSelector(),
+        if (_recentMeals.isNotEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _openRepeatMealPicker,
+              icon: const Icon(Icons.replay, size: 18),
+              label: Text("Repeat a previous ${mealTypeLabels[_mealType]}"),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -712,7 +815,10 @@ class FoodHubScreenState extends State<FoodHubScreen> {
             child: ChoiceChip(
               label: Text(entry.value),
               selected: isSelected,
-              onSelected: (_) => setState(() => _mealType = entry.key),
+              onSelected: (_) {
+                setState(() => _mealType = entry.key);
+                _loadRecentMeals();
+              },
               showCheckmark: false,
               labelStyle: TextStyle(
                 color: isSelected ? Colors.black : AppColors.textSecondary,
