@@ -9,8 +9,34 @@ import "../widgets/app_toast.dart";
 import "../constants.dart";
 import "../theme.dart";
 
+/// Best-effort mime type for a picked file, falling back to the extension when
+/// the platform doesn't report one.
+String guessMediaType(XFile file) {
+  if (file.mimeType != null) return file.mimeType!;
+  final lower = file.name.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  return "image/jpeg";
+}
+
 class ScanFoodScreen extends StatefulWidget {
-  const ScanFoodScreen({super.key});
+  /// A photo already captured by the caller. On web the file input must be
+  /// opened inside the tap's user-activation window, so the shell captures
+  /// first and hands the bytes over rather than letting this screen do it.
+  final Uint8List? initialImageBytes;
+  final String? initialMediaType;
+
+  /// Whether to open the camera on entry. Callers that already attempted a
+  /// capture pass false so the user isn't prompted twice.
+  final bool autoCapture;
+
+  const ScanFoodScreen({
+    super.key,
+    this.initialImageBytes,
+    this.initialMediaType,
+    this.autoCapture = true,
+  });
 
   @override
   State<ScanFoodScreen> createState() => _ScanFoodScreenState();
@@ -39,20 +65,18 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
   @override
   void initState() {
     super.initState();
-    // Jump straight into the camera on entry; the Camera/Gallery buttons
-    // remain as the fallback if the user cancels the shot.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _imageBytes == null) _pickPhoto(ImageSource.camera);
-    });
-  }
-
-  String _guessMediaType(XFile file) {
-    if (file.mimeType != null) return file.mimeType!;
-    final lower = file.name.toLowerCase();
-    if (lower.endsWith(".png")) return "image/png";
-    if (lower.endsWith(".webp")) return "image/webp";
-    if (lower.endsWith(".gif")) return "image/gif";
-    return "image/jpeg";
+    if (widget.initialImageBytes != null) {
+      _imageBytes = widget.initialImageBytes;
+      _mediaType = widget.initialMediaType ?? "image/jpeg";
+    }
+    // Only auto-open when the caller hasn't already captured. Note this can't
+    // reach the camera on web — the browser blocks a file input opened outside
+    // a user gesture — which is why the shell captures up front instead.
+    if (widget.autoCapture && _imageBytes == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _imageBytes == null) _pickPhoto(ImageSource.camera);
+      });
+    }
   }
 
   Future<void> _pickPhoto(ImageSource source) async {
@@ -67,7 +91,7 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
     final bytes = await picked.readAsBytes();
     setState(() {
       _imageBytes = bytes;
-      _mediaType = _guessMediaType(picked);
+      _mediaType = guessMediaType(picked);
       _result = null;
       _errorMessage = null;
     });

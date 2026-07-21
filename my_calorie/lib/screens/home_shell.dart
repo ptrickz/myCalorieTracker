@@ -1,5 +1,7 @@
+import "dart:typed_data";
 import "package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart";
 import "package:flutter/material.dart";
+import "package:image_picker/image_picker.dart";
 import "../theme.dart";
 import "dashboard_screen.dart";
 import "create_food_screen.dart";
@@ -56,9 +58,38 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _openScan() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const ScanFoodScreen()));
+    // Capture here, still inside the tap's user-activation window: on web the
+    // browser only opens a file/camera input for a gesture-initiated click, so
+    // firing it after a route push (as the scan screen used to) silently does
+    // nothing in an installed PWA.
+    Uint8List? bytes;
+    String? mediaType;
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        bytes = await picked.readAsBytes();
+        mediaType = guessMediaType(picked);
+      }
+    } catch (_) {
+      // No camera available (or the user denied it) — fall through to the scan
+      // screen's own Camera/Gallery buttons.
+    }
+
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ScanFoodScreen(
+          initialImageBytes: bytes,
+          initialMediaType: mediaType,
+          autoCapture: false,
+        ),
+      ),
+    );
     if (!mounted) return;
     setState(() => _dashboardRefreshKey++);
   }
