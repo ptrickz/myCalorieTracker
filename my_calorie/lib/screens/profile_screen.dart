@@ -1,3 +1,4 @@
+import "package:flutter/cupertino.dart";
 import "package:flutter/material.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
@@ -6,16 +7,23 @@ import "../utils/tdee_calc.dart";
 import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
 import "../widgets/background_image_body.dart";
+import "../widgets/hiding_app_bar.dart";
+import "../widgets/seven_day_trend_card.dart";
+import "../widgets/streak_card.dart";
 import "../widgets/weekly_loss_goal_slider.dart";
+import "../widgets/weight_trend_card.dart";
 
+/// Combined profile + progress tab: account details and goals, followed by
+/// the streak / weekly-trend / weight-trend analytics that used to live on
+/// the separate Status page.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class ProfileScreenState extends State<ProfileScreen> with AppBarVisibilityMixin {
   final _apiService = ApiService();
   final _authStorage = AuthStorage();
   final _heightController = TextEditingController();
@@ -47,6 +55,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   double _weeklyLossGoalKg = 0.5;
   double? _latestWeightKg;
   bool _useCustomCalorieTargets = false;
+
+  // Progress analytics (moved here from the old Status tab).
+  List<Map<String, dynamic>> _weightLogs = const [];
+  int _currentStreak = 0;
+  int _longestStreak = 0;
+  bool _loggedToday = false;
+  List<Map<String, dynamic>> _rangeDays = const [];
 
   bool _isEditing = false;
   bool _isLoading = true;
@@ -93,8 +108,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final token = await _authStorage.readToken();
       final profile = await _apiService.getProfile(token!);
+      final weightLogs = await _apiService.getWeightLogs(token);
+      final streak = await _apiService.getStreak(token);
+      final range = await _apiService.getLogsRange(token);
       if (!mounted) return;
       setState(() {
+        _weightLogs = weightLogs;
+        _currentStreak = streak["currentStreak"] as int;
+        _longestStreak = streak["longestStreak"] as int;
+        _loggedToday = streak["loggedToday"] as bool;
+        _rangeDays = (range["days"] as List).cast<Map<String, dynamic>>();
         _email = profile["email"] as String?;
         final dob = profile["dateOfBirth"] as String?;
         _dateOfBirth = dob == null ? null : DateTime.parse(dob);
@@ -155,6 +178,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  /// Public so HomeShell's center FAB can trigger it for this tab.
+  Future<void> openLogWeightDialog() async {
+    final controller = TextEditingController();
+    final weightKg = await showCupertinoDialog<double>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text("Log today's weight"),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: AppTextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            autofocus: true,
+            placeholder: "Weight (kg)",
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancel"),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(double.tryParse(controller.text)),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+
+    if (weightKg == null) return;
+
+    try {
+      final token = await _authStorage.readToken();
+      await _apiService.addWeightLog(token!, weightKg);
+      _loadProfile();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
+    }
+  }
+
   Future<void> _pickDateOfBirth() async {
     final picked = await showDatePicker(
       context: context,
@@ -211,18 +277,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(title: const Text("Profile")),
+      appBar: HidingAppBar(visible: appBarVisible, title: const Text("Profile")),
       body: BackgroundImageBody(
         imagePath: "assets/img/profile.png",
         child: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
+          : NotificationListener<UserScrollNotification>(
+              onNotification: handleScrollNotification,
+              child: RefreshIndicator(
+              onRefresh: _loadProfile,
+              child: ListView(
               padding: EdgeInsets.fromLTRB(
                   24, MediaQuery.of(context).padding.top + kToolbarHeight + 8, 24, 24),
               children: [
                 _buildHeaderCard(),
                 const SizedBox(height: 24),
-                _buildSectionLabel("About you"),
+                StreakCard(
+                  currentStreak: _currentStreak,
+                  longestStreak: _longestStreak,
+                  loggedToday: _loggedToday,
+                ),
+                const SizedBox(height: 16),
+                SevenDayTrendCard(days: _rangeDays),
+                const SizedBox(height: 16),
+                WeightTrendCard(
+                  weightLogs: _weightLogs,
+                  goalWeightKg: double.tryParse(_goalWeightController.text),
+                  milestoneWeightKg: double.tryParse(_milestoneWeightController.text),
+                ),
+                const SizedBox(height: 24),
+                // Edit sits with the two cards it edits (About you + Goals),
+                // not up in the header card.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildSectionLabel("About you"),
+                    if (!_isEditing)
+                      TextButton.icon(
+                        onPressed: _startEditing,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text("Edit", style: TextStyle(fontSize: 13)),
+                      ),
+                  ],
+                ),
                 _buildAboutSection(),
                 const SizedBox(height: 24),
                 _buildSectionLabel("Goals"),
@@ -252,6 +354,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
               ],
             ),
+          ),
+          ),
       ),
     );
   }
@@ -275,12 +379,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (!_isEditing)
-              IconButton(
-                onPressed: _startEditing,
-                icon: const Icon(Icons.edit, size: 20, color: AppColors.accent),
-                tooltip: "Edit profile",
-              ),
           ],
         ),
       ),

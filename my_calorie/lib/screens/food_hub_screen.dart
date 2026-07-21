@@ -8,6 +8,7 @@ import "../constants.dart";
 import "../theme.dart";
 import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
+import "../widgets/hiding_app_bar.dart";
 import "../widgets/background_image_body.dart";
 import "../widgets/food_photo_picker.dart";
 import "../widgets/photo_viewer.dart";
@@ -25,7 +26,7 @@ class FoodHubScreen extends StatefulWidget {
   State<FoodHubScreen> createState() => FoodHubScreenState();
 }
 
-class FoodHubScreenState extends State<FoodHubScreen> {
+class FoodHubScreenState extends State<FoodHubScreen> with AppBarVisibilityMixin {
   final _apiService = ApiService();
   final _authStorage = AuthStorage();
   final _searchController = TextEditingController();
@@ -335,25 +336,25 @@ class FoodHubScreenState extends State<FoodHubScreen> {
                   const SizedBox(height: 12),
                   AppTextField(
                     controller: caloriesController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     placeholder: "Calories per 100g",
                   ),
                   const SizedBox(height: 12),
                   AppTextField(
                     controller: proteinController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     placeholder: "Protein per 100g (g)",
                   ),
                   const SizedBox(height: 12),
                   AppTextField(
                     controller: carbsController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     placeholder: "Carbs per 100g (g)",
                   ),
                   const SizedBox(height: 12),
                   AppTextField(
                     controller: fatController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     placeholder: "Fat per 100g (g)",
                   ),
                   const SizedBox(height: 8),
@@ -457,10 +458,14 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
+      appBar: HidingAppBar(visible: appBarVisible, title: const Text("Food")),
       body: BackgroundImageBody(
         imagePath: "assets/img/food.png",
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(24, 24, 24, 24),
+        child: NotificationListener<UserScrollNotification>(
+          onNotification: handleScrollNotification,
+          child: Padding(
+          padding: EdgeInsets.fromLTRB(
+              24, MediaQuery.of(context).padding.top + kToolbarHeight + 8, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -489,6 +494,7 @@ class FoodHubScreenState extends State<FoodHubScreen> {
                     : _buildCustomFoodBody(),
               ),
             ],
+          ),
           ),
         ),
       ),
@@ -714,8 +720,9 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   // --- Custom Food sub-tab ---
 
   Widget _buildCustomFoodBody() {
-    if (_isLoadingCustom)
+    if (_isLoadingCustom) {
       return const Center(child: CircularProgressIndicator());
+    }
     if (_customErrorMessage != null) {
       return Center(
         child: Text(

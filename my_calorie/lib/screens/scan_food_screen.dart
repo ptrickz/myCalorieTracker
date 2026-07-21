@@ -330,7 +330,7 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
               Expanded(
                 child: AppTextField(
                   controller: _caloriesController,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   placeholder: "Calories",
                   suffix: const _UnitLabel("kcal"),
                 ),
@@ -339,7 +339,7 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
               Expanded(
                 child: AppTextField(
                   controller: _proteinController,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   placeholder: "Protein",
                   suffix: const _UnitLabel("g"),
                 ),
@@ -352,7 +352,7 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
               Expanded(
                 child: AppTextField(
                   controller: _carbsController,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   placeholder: "Carbs",
                   suffix: const _UnitLabel("g"),
                 ),
@@ -361,7 +361,7 @@ class _ScanFoodScreenState extends State<ScanFoodScreen> {
               Expanded(
                 child: AppTextField(
                   controller: _fatController,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   placeholder: "Fat",
                   suffix: const _UnitLabel("g"),
                 ),

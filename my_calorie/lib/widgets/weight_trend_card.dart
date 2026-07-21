@@ -5,14 +5,11 @@ class WeightTrendCard extends StatelessWidget {
   final List<Map<String, dynamic>> weightLogs;
   final double? goalWeightKg;
   final double? milestoneWeightKg;
-  final VoidCallback onEditGoals;
-
   const WeightTrendCard({
     super.key,
     required this.weightLogs,
     required this.goalWeightKg,
     required this.milestoneWeightKg,
-    required this.onEditGoals,
   });
 
   @override
@@ -23,18 +20,8 @@ class WeightTrendCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text("Weight trend", style: Theme.of(context).textTheme.titleMedium),
-                ),
-                IconButton(
-                  onPressed: onEditGoals,
-                  icon: const Icon(Icons.flag_outlined),
-                  tooltip: "Edit goal weight",
-                ),
-              ],
-            ),
+            Text("Weight trend", style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
             if (weightLogs.length < 2)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),

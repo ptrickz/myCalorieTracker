@@ -166,6 +166,8 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
 
   Future<void> _createCustomExercise() async {
     final nameController = TextEditingController();
+    final setsController = TextEditingController();
+    final repsController = TextEditingController();
     final videoController = TextEditingController();
     final imageController = TextEditingController();
 
@@ -180,6 +182,28 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               AppTextField(controller: nameController, autofocus: true, placeholder: "Name"),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppTextField(
+                      controller: setsController,
+                      placeholder: "Sets",
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: AppTextField(
+                      controller: repsController,
+                      // Free text — targets can be "8-12" or "30 sec". "sec"
+                      // marks the exercise as timed in the log card.
+                      placeholder: "Reps (8-12, 30 sec)",
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               AppTextField(
                 controller: videoController,
@@ -216,6 +240,8 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
       final exercise = await _apiService.createExercise(
         token!,
         name: name,
+        defaultSets: int.tryParse(setsController.text),
+        defaultReps: repsController.text.trim().isEmpty ? null : repsController.text.trim(),
         videoUrl: videoController.text.trim().isEmpty ? null : videoController.text.trim(),
         imageUrl: imageController.text.trim().isEmpty ? null : imageController.text.trim(),
       );
@@ -255,6 +281,10 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                           workoutLogId: widget.workoutLogId,
                           initialSets: _existingSets[e["id"]] ?? const [],
                           onSetLogged: () => _startRestTimer(),
+                          onRemoved: () => setState(() {
+                            _exercises.removeWhere((x) => x["id"] == e["id"]);
+                            _existingSets.remove(e["id"]);
+                          }),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -293,11 +323,16 @@ class _ExerciseLogCard extends StatefulWidget {
   final List<Map<String, dynamic>> initialSets;
   final VoidCallback onSetLogged;
 
+  /// Called after the exercise (and all its logged sets) has been removed
+  /// from this session, so the parent can drop the card.
+  final VoidCallback onRemoved;
+
   const _ExerciseLogCard({
     super.key,
     required this.exercise,
     required this.workoutLogId,
     required this.onSetLogged,
+    required this.onRemoved,
     this.initialSets = const [],
   });
 
@@ -316,7 +351,15 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
   Map<String, dynamic>? _progression;
   bool _isLogging = false;
 
-  bool get _isTimed => (widget.exercise["defaultReps"] as String?)?.contains("sec") ?? false;
+  // Duration-based exercises: short holds target "sec" (planks), cardio
+  // targets "min" (walks, bike). The input follows the target's unit; the
+  // server always stores seconds.
+  bool get _isTimed {
+    final reps = widget.exercise["defaultReps"] as String?;
+    return reps != null && (reps.contains("sec") || reps.contains("min"));
+  }
+
+  bool get _isMinutes => (widget.exercise["defaultReps"] as String?)?.contains("min") ?? false;
 
   // One past the highest set number so deleting a middle set doesn't cause the
   // next one to reuse a number.
@@ -345,7 +388,8 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
         if (suggestion["reps"] != null) _repsController.text = (suggestion["reps"] as num).round().toString();
         if (suggestion["weightKg"] != null) _weightController.text = (suggestion["weightKg"] as num).toString();
         if (suggestion["durationSeconds"] != null) {
-          _durationController.text = (suggestion["durationSeconds"] as num).round().toString();
+          final seconds = (suggestion["durationSeconds"] as num).round();
+          _durationController.text = _isMinutes ? (seconds / 60).round().toString() : seconds.toString();
         }
       }
     } catch (_) {
@@ -364,7 +408,13 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
         setNumber: _nextSetNumber,
         reps: _isTimed ? null : int.tryParse(_repsController.text),
         weightKg: _isTimed ? null : double.tryParse(_weightController.text),
-        durationSeconds: _isTimed ? int.tryParse(_durationController.text) : null,
+        durationSeconds: !_isTimed
+            ? null
+            : _isMinutes
+                ? (int.tryParse(_durationController.text) == null
+                    ? null
+                    : int.parse(_durationController.text) * 60)
+                : int.tryParse(_durationController.text),
       );
       if (!mounted) return;
       setState(() => _loggedSets = [..._loggedSets, set]);
@@ -399,8 +449,56 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
+  /// Removes this exercise from the session: deletes every logged set on the
+  /// server (the session record is just its sets), then tells the parent to
+  /// drop the card. The exercise itself stays in the catalog.
+  Future<void> _removeFromSession() async {
+    final setCount = _loggedSets.length;
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text("Remove ${widget.exercise["name"]}?"),
+        content: Text(
+          setCount == 0
+              ? "Remove this exercise from the session?"
+              : "This deletes its $setCount logged set${setCount == 1 ? "" : "s"} from this session.",
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Remove"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final token = await _authStorage.readToken();
+      for (final set in List.of(_loggedSets)) {
+        final setId = set["id"] as String?;
+        if (setId != null) await _apiService.deleteWorkoutSet(token!, widget.workoutLogId, setId);
+      }
+      if (!mounted) return;
+      widget.onRemoved();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
+    }
+  }
+
   String _formatSet(Map<String, dynamic> s) {
-    if (s["durationSeconds"] != null) return "Set ${s["setNumber"]}: ${s["durationSeconds"]} sec";
+    final seconds = (s["durationSeconds"] as num?)?.toInt();
+    if (seconds != null) {
+      final duration = seconds >= 60 && seconds % 60 == 0 ? "${seconds ~/ 60} min" : "$seconds sec";
+      return "Set ${s["setNumber"]}: $duration";
+    }
     final weight = s["weightKg"] != null ? " @ ${s["weightKg"]}kg" : "";
     return "Set ${s["setNumber"]}: ${s["reps"]} reps$weight";
   }
@@ -416,7 +514,12 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
       child: ExpansionTile(
         title: Text(widget.exercise["name"] as String),
         subtitle: Text(
-          "${widget.exercise["defaultSets"] ?? "?"} x ${widget.exercise["defaultReps"] ?? "?"} · ${_loggedSets.length} logged",
+          // Custom exercises have no target sets/reps — show just the count.
+          [
+            if (widget.exercise["defaultSets"] != null && widget.exercise["defaultReps"] != null)
+              "${widget.exercise["defaultSets"]} x ${widget.exercise["defaultReps"]}",
+            "${_loggedSets.length} logged",
+          ].join(" · "),
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         onExpansionChanged: (expanded) {
@@ -458,7 +561,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                   AppTextField(
                     controller: _durationController,
                     keyboardType: TextInputType.number,
-                    placeholder: "Duration (sec)",
+                    placeholder: "Duration (${_isMinutes ? "min" : "sec"})",
                   )
                 else
                   Row(
@@ -505,6 +608,16 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _removeFromSession,
+                    style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text("Remove from session"),
+                  ),
+                ),
               ],
             ),
           ),

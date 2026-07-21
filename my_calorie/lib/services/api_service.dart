@@ -377,13 +377,22 @@ class ApiService {
     String token, {
     required String name,
     String? formCue,
+    int? defaultSets,
+    String? defaultReps,
     String? videoUrl,
     String? imageUrl,
   }) async {
     final response = await http.post(
       Uri.parse("$apiBaseUrl/exercises"),
       headers: _authHeaders(token, withJson: true),
-      body: jsonEncode({"name": name, "formCue": ?formCue, "videoUrl": ?videoUrl, "imageUrl": ?imageUrl}),
+      body: jsonEncode({
+        "name": name,
+        "formCue": ?formCue,
+        "defaultSets": ?defaultSets,
+        "defaultReps": ?defaultReps,
+        "videoUrl": ?videoUrl,
+        "imageUrl": ?imageUrl,
+      }),
     );
 
     if (response.statusCode != 201) {

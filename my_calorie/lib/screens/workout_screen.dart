@@ -6,6 +6,7 @@ import "../theme.dart";
 import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
 import "../widgets/background_image_body.dart";
+import "../widgets/hiding_app_bar.dart";
 import "../widgets/workout_week_calendar.dart";
 import "workout_session_screen.dart";
 
@@ -31,13 +32,12 @@ class WorkoutScreen extends StatefulWidget {
   State<WorkoutScreen> createState() => WorkoutScreenState();
 }
 
-class WorkoutScreenState extends State<WorkoutScreen> {
+class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin {
   final _apiService = ApiService();
   final _authStorage = AuthStorage();
 
   bool _isLoading = true;
   String? _errorMessage;
-  List<Map<String, dynamic>> _todaysExercises = const [];
   List<Map<String, dynamic>> _recentLogs = const [];
   bool _isStarting = false;
 
@@ -57,16 +57,9 @@ class WorkoutScreenState extends State<WorkoutScreen> {
 
     try {
       final token = await _authStorage.readToken();
-      final dayTag = _todaysDayTag;
-      final exercises = dayTag == null
-          ? <Map<String, dynamic>>[]
-          : await _apiService.getExercises(token!, dayTag: dayTag);
       final logs = await _apiService.getWorkoutLogs(token!, limit: 100);
       if (!mounted) return;
-      setState(() {
-        _todaysExercises = exercises;
-        _recentLogs = logs;
-      });
+      setState(() => _recentLogs = logs);
     } catch (e) {
       if (mounted) setState(() => _errorMessage = e.toString());
     } finally {
@@ -74,33 +67,12 @@ class WorkoutScreenState extends State<WorkoutScreen> {
     }
   }
 
-  Future<void> _startTodaysWorkout() async {
-    setState(() => _isStarting = true);
-    try {
-      final token = await _authStorage.readToken();
-      final log = await _apiService.createWorkoutLog(token!, venue: "Home");
-      if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => WorkoutSessionScreen(
-            workoutLogId: log["id"] as String,
-            initialExercises: _todaysExercises,
-          ),
-        ),
-      );
-      _load();
-    } catch (e) {
-      if (!mounted) return;
-      AppToast.show(context, e.toString());
-    } finally {
-      if (mounted) setState(() => _isStarting = false);
-    }
-  }
-
   /// Called by HomeShell's Workout-tab FAB.
   Future<void> startFreeSession() => _startFreeSession();
 
   Future<void> _startFreeSession() async {
+    // Guards against a double-tapped FAB creating two sessions.
+    if (_isStarting) return;
     final otherController = TextEditingController();
     var selectedVenue = _venueOptions.first;
 
@@ -191,6 +163,7 @@ class WorkoutScreenState extends State<WorkoutScreen> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      appBar: HidingAppBar(visible: appBarVisible, title: const Text("Workouts")),
       body: BackgroundImageBody(
         imagePath: "assets/img/workouts.png",
         child: _isLoading
@@ -202,10 +175,13 @@ class WorkoutScreenState extends State<WorkoutScreen> {
                   style: const TextStyle(color: Colors.red),
                 ),
               )
-            : RefreshIndicator(
+            : NotificationListener<UserScrollNotification>(
+                onNotification: handleScrollNotification,
+                child: RefreshIndicator(
                 onRefresh: _load,
                 child: ListView(
-                  padding: EdgeInsets.fromLTRB(24, 24, 24, 24),
+                  padding: EdgeInsets.fromLTRB(
+                      24, MediaQuery.of(context).padding.top + kToolbarHeight + 8, 24, 24),
                   children: [
                     Text(
                       dayTag != null ? "Today's workout ($dayTag)" : "Today — rest day",
@@ -235,32 +211,8 @@ class WorkoutScreenState extends State<WorkoutScreen> {
                       ..._buildWeekGroups(),
                   ],
                 ),
-              ),
-      ),
-    );
-  }
-
-  Widget _buildExercisePreview(Map<String, dynamic> exercise) {
-    final imageUrl = exercise["imageUrl"] as String?;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: imageUrl == null
-            ? null
-            : ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  imageUrl,
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
                 ),
               ),
-        title: Text(exercise["name"] as String),
-        subtitle: Text(
-          "${exercise["defaultSets"] ?? "?"} x ${exercise["defaultReps"] ?? "?"}",
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
       ),
     );
   }

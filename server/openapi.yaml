@@ -453,6 +453,14 @@ components:
           example: Cable Lat Pulldown
         formCue:
           type: string
+        defaultSets:
+          type: integer
+          minimum: 1
+          example: 3
+        defaultReps:
+          type: string
+          description: 'Free text — rep ranges or durations, e.g. "8-12" or "30 sec"'
+          example: 8-12
         videoUrl:
           type: string
         imageUrl:

@@ -4,8 +4,8 @@ import "../theme.dart";
 import "dashboard_screen.dart";
 import "create_food_screen.dart";
 import "food_hub_screen.dart";
+import "profile_screen.dart";
 import "scan_food_screen.dart";
-import "status_screen.dart";
 import "workout_screen.dart";
 
 class HomeShell extends StatefulWidget {
@@ -25,22 +25,22 @@ class _HomeShellState extends State<HomeShell> {
 
   final _foodHubKey = GlobalKey<FoodHubScreenState>();
   final _workoutKey = GlobalKey<WorkoutScreenState>();
-  final _statusKey = GlobalKey<StatusScreenState>();
+  final _profileKey = GlobalKey<ProfileScreenState>();
   final _foodHubTab = ValueNotifier<FoodHubTab>(FoodHubTab.logFood);
 
   static const _icons = [
     Icons.home_outlined,
     Icons.restaurant_menu_outlined,
     Icons.directions_bike_outlined,
-    Icons.insights_outlined,
+    Icons.person_outline,
   ];
   static const _activeIcons = [
     Icons.home,
     Icons.restaurant_menu,
     Icons.directions_bike,
-    Icons.insights,
+    Icons.person,
   ];
-  static const _labels = ["Home", "Food", "Workout", "Status"];
+  static const _labels = ["Home", "Food", "Workout", "Profile"];
 
   @override
   void dispose() {
@@ -100,7 +100,7 @@ class _HomeShellState extends State<HomeShell> {
         );
       case 3:
         return FloatingActionButton(
-          onPressed: () => _statusKey.currentState?.openLogWeightDialog(),
+          onPressed: () => _profileKey.currentState?.openLogWeightDialog(),
           tooltip: "Log today's weight",
           child: const Icon(Icons.monitor_weight_outlined),
         );
@@ -118,7 +118,7 @@ class _HomeShellState extends State<HomeShell> {
         onSubTabChanged: (tab) => _foodHubTab.value = tab,
       ),
       WorkoutScreen(key: _workoutKey),
-      StatusScreen(key: _statusKey),
+      ProfileScreen(key: _profileKey),
     ];
 
     return Scaffold(

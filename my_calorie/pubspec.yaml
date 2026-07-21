@@ -53,6 +53,19 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# App launcher icons — regenerate with: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/img/launcher_icon.png"
+  # iOS icons can't have transparency; fill the rounded corners with the
+  # app's background black.
+  remove_alpha_ios: true
+  background_color_ios: "#0D0D0D"
+  adaptive_icon_background: "#0D0D0D"
+  adaptive_icon_foreground: "assets/img/launcher_icon_foreground.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
