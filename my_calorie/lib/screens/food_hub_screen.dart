@@ -233,7 +233,9 @@ class FoodHubScreenState extends State<FoodHubScreen> {
           mealType: mealType,
         );
       }
-      _loadDayLogs(_viewedDate);
+      // Awaited so a caller (the day-log sheet) can rebuild once the entries
+      // have actually refreshed.
+      await _loadDayLogs(_viewedDate);
     } catch (e) {
       if (!mounted) return;
       AppToast.show(context, e.toString());
@@ -653,80 +655,138 @@ class FoodHubScreenState extends State<FoodHubScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
               onPressed: _isLoadingDay ? null : _goToPreviousDay,
               icon: const Icon(Icons.chevron_left),
+              visualDensity: VisualDensity.compact,
             ),
             Expanded(
-              child: Column(
-                children: [
-                  Text(
-                    _dateLabel(_viewedDate),
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
+              child: InkWell(
+                onTap: _openDayLogSheet,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _dateLabel(_viewedDate),
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.keyboard_arrow_up, size: 16),
+                        ],
+                      ),
+                      Text(
+                        _isLoadingDay
+                            ? "Loading..."
+                            : "${(_dayTotals["calories"] as num).round()} kcal · "
+                                "${(_dayTotals["protein"] as num).round()}g protein"
+                                "${_entries.isEmpty ? "" : " · ${_entries.length} item${_entries.length == 1 ? "" : "s"}"}",
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    "${(_dayTotals["calories"] as num).round()} kcal · ${(_dayTotals["protein"] as num).round()}g protein",
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
             IconButton(
               onPressed: _isLoadingDay || _isViewingToday ? null : _goToNextDay,
               icon: const Icon(Icons.chevron_right),
+              visualDensity: VisualDensity.compact,
             ),
           ],
         ),
-        if (_isLoadingDay)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (_entries.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              _isViewingToday
-                  ? "Nothing logged yet today."
-                  : "Nothing logged this day.",
-              textAlign: TextAlign.center,
+      ],
+    );
+  }
+
+  /// The day's entries live in a sheet rather than a second list on the page —
+  /// finding food is the page's job, and two lists sharing one viewport left
+  /// both of them cramped.
+  Future<void> _openDayLogSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
             ),
-          )
-        else
-          // Capped so long days don't crowd out the log/search tabs below.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 180),
-            child: ListView(
-              // Without this the list absorbs the ambient safe-area padding
-              // (app-bar height, since the body extends behind it) as blank
-              // space above the first entry.
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ..._entries.map(
-                  (entry) => ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(entry["foodItem"]["name"] as String),
-                    subtitle: Text(
-                      "${entry["mealType"]} · ${(entry["servingGrams"] as num).round()}g",
-                    ),
-                    trailing: Text(
-                      "${(entry["calories"] as num).round()} kcal",
-                    ),
-                    onTap: () => _openEditLogEntryDialog(entry),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+                  child: Text(
+                    _dateLabel(_viewedDate),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                  child: Text(
+                    "${(_dayTotals["calories"] as num).round()} kcal · "
+                    "${(_dayTotals["protein"] as num).round()}g protein",
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                if (_entries.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                    child: Text(
+                      _isViewingToday
+                          ? "Nothing logged yet today."
+                          : "Nothing logged this day.",
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      shrinkWrap: true,
+                      children: _entries
+                          .map(
+                            (entry) => ListTile(
+                              title: Text(entry["foodItem"]["name"] as String),
+                              subtitle: Text(
+                                "${entry["mealType"]} · ${(entry["servingGrams"] as num).round()}g",
+                              ),
+                              trailing: Text(
+                                "${(entry["calories"] as num).round()} kcal",
+                              ),
+                              onTap: () async {
+                                await _openEditLogEntryDialog(entry);
+                                // Parent state has refreshed by now; rebuild
+                                // the sheet so it reflects the change.
+                                setSheetState(() {});
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
               ],
             ),
           ),
-      ],
+        ),
+      ),
     );
   }
 
