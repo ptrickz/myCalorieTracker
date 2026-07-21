@@ -36,9 +36,22 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   // Log Food state
   List<Map<String, dynamic>> _results = const [];
   Map<String, dynamic>? _selectedFood;
-  String _mealType = "BREAKFAST";
+  // Seeded from the clock rather than always "Breakfast", and deliberately not
+  // reset after a log so a run of dinner items only needs picking once.
+  String _mealType = _mealTypeForNow();
+
+  static String _mealTypeForNow() {
+    final hour = DateTime.now().hour;
+    if (hour < 11) return "BREAKFAST";
+    if (hour < 16) return "LUNCH";
+    if (hour < 21) return "DINNER";
+    return "SNACK";
+  }
   bool _isSearching = false;
   bool _isLogging = false;
+  // Id of the food currently being one-tap logged, so its row can show a
+  // spinner and repeat taps are ignored.
+  String? _quickLoggingFoodId;
   String? _errorMessage;
   Timer? _debounce;
 
@@ -283,7 +296,6 @@ class FoodHubScreenState extends State<FoodHubScreen> {
       setState(() {
         _selectedFood = null;
         _servingController.text = "100";
-        _mealType = "BREAKFAST";
       });
       _loadFoods();
       _loadDayLogs(_viewedDate);
@@ -291,6 +303,37 @@ class FoodHubScreenState extends State<FoodHubScreen> {
       setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isLogging = false);
+    }
+  }
+
+  /// Logs a food in one tap, reusing the serving last used for it (100g if it
+  /// has never been logged) and whichever meal is currently selected.
+  Future<void> _quickLog(Map<String, dynamic> food) async {
+    if (_quickLoggingFoodId != null) return;
+    setState(() => _quickLoggingFoodId = food["id"] as String);
+
+    final servingGrams = (food["lastServingGrams"] as num?)?.toDouble() ?? 100;
+
+    try {
+      final token = await _authStorage.readToken();
+      await _apiService.createLogEntry(
+        token!,
+        foodItemId: food["id"] as String,
+        servingGrams: servingGrams,
+        mealType: _mealType,
+      );
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        "Logged ${food["name"]} · ${servingGrams.round()}g to ${mealTypeLabels[_mealType]}",
+      );
+      _loadFoods();
+      _loadDayLogs(_viewedDate);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _quickLoggingFoodId = null);
     }
   }
 
@@ -601,6 +644,8 @@ class FoodHubScreenState extends State<FoodHubScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildMealSelector(),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -652,8 +697,51 @@ class FoodHubScreenState extends State<FoodHubScreen> {
     );
   }
 
+  /// Meal picked once, up front, and kept — so logging several dinner items
+  /// doesn't mean choosing "Dinner" over and over.
+  Widget _buildMealSelector() {
+    return SizedBox(
+      height: 36,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        children: mealTypeLabels.entries.map((entry) {
+          final isSelected = entry.key == _mealType;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(entry.value),
+              selected: isSelected,
+              onSelected: (_) => setState(() => _mealType = entry.key),
+              showCheckmark: false,
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.black : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontSize: 13,
+              ),
+              selectedColor: AppColors.accent,
+              backgroundColor: AppColors.surface,
+              side: BorderSide(
+                color: isSelected ? AppColors.accent : AppColors.border,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildFoodTile(Map<String, dynamic> food) {
     final photoBase64 = food["photoBase64"] as String?;
+    final perHundred = (food["caloriesPer100g"] as num).toDouble();
+    final lastServing = (food["lastServingGrams"] as num?)?.toDouble();
+    // For a food you've logged before, what it'll actually cost you is more
+    // useful than the per-100g unit price.
+    final subtitle = lastServing == null
+        ? "${perHundred.round()} kcal / 100g"
+        : "${(perHundred * lastServing / 100).round()} kcal · ${lastServing.round()}g";
+    final isQuickLogging = _quickLoggingFoodId == food["id"];
+
     return ListTile(
       leading: photoBase64 == null
           ? const CircleAvatar(child: Icon(Icons.restaurant))
@@ -664,7 +752,18 @@ class FoodHubScreenState extends State<FoodHubScreen> {
               ),
             ),
       title: Text(food["name"] as String),
-      subtitle: Text("${(food["caloriesPer100g"] as num).round()} kcal / 100g"),
+      subtitle: Text(subtitle),
+      trailing: IconButton(
+        icon: isQuickLogging
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.add_circle_outline, color: AppColors.accent),
+        tooltip: "Log ${(lastServing ?? 100).round()}g to ${mealTypeLabels[_mealType]}",
+        onPressed: isQuickLogging ? null : () => _quickLog(food),
+      ),
       onTap: () => setState(() => _selectedFood = food),
     );
   }
@@ -684,14 +783,9 @@ class FoodHubScreenState extends State<FoodHubScreen> {
           placeholder: "Serving size (grams)",
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          initialValue: _mealType,
-          decoration: const InputDecoration(labelText: "Meal"),
-          items: mealTypeLabels.entries
-              .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-              .toList(),
-          onChanged: (value) => setState(() => _mealType = value!),
-        ),
+        // Meal is chosen on the search screen and carried through, so this
+        // step only needs to show which one it'll land in.
+        _buildMealSelector(),
         const SizedBox(height: 24),
         if (_errorMessage != null)
           Padding(

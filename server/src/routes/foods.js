@@ -18,15 +18,24 @@ router.get("/", async (req, res) => {
   // No search query: this is the screen's default view, so surface the
   // user's recently-logged foods first (for one-tap re-logging), then fill
   // the rest of the list up to 20 with other available foods.
+  // `distinct` with the newest-first ordering means each row is that food's
+  // most recent entry, so its serving and meal are the last ones used — which
+  // the client needs to offer one-tap re-logging.
   const recentLogEntries = await prisma.logEntry.findMany({
     where: { userId: req.userId },
     orderBy: { loggedAt: "desc" },
-    select: { foodItemId: true },
+    select: { foodItemId: true, servingGrams: true, mealType: true },
     distinct: ["foodItemId"],
     take: 20,
   });
 
   const recentFoodIds = recentLogEntries.map((entry) => entry.foodItemId);
+  const lastUsedByFoodId = new Map(
+    recentLogEntries.map((entry) => [
+      entry.foodItemId,
+      { lastServingGrams: entry.servingGrams, lastMealType: entry.mealType },
+    ]),
+  );
   const recentFoods = recentFoodIds.length
     ? await prisma.foodItem.findMany({ where: { id: { in: recentFoodIds } } })
     : [];
@@ -45,7 +54,11 @@ router.get("/", async (req, res) => {
     : [];
 
   res.json([
-    ...orderedRecentFoods.map((food) => ({ ...food, isRecent: true })),
+    ...orderedRecentFoods.map((food) => ({
+      ...food,
+      isRecent: true,
+      ...lastUsedByFoodId.get(food.id),
+    })),
     ...otherFoods.map((food) => ({ ...food, isRecent: false })),
   ]);
 });
