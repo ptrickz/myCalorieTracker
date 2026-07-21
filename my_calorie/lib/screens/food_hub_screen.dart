@@ -8,7 +8,6 @@ import "../constants.dart";
 import "../theme.dart";
 import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
-import "../widgets/hiding_app_bar.dart";
 import "../widgets/background_image_body.dart";
 import "../widgets/food_photo_picker.dart";
 import "../widgets/photo_viewer.dart";
@@ -26,7 +25,7 @@ class FoodHubScreen extends StatefulWidget {
   State<FoodHubScreen> createState() => FoodHubScreenState();
 }
 
-class FoodHubScreenState extends State<FoodHubScreen> with AppBarVisibilityMixin {
+class FoodHubScreenState extends State<FoodHubScreen> {
   final _apiService = ApiService();
   final _authStorage = AuthStorage();
   final _searchController = TextEditingController();
@@ -458,12 +457,12 @@ class FoodHubScreenState extends State<FoodHubScreen> with AppBarVisibilityMixin
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: HidingAppBar(visible: appBarVisible, title: const Text("Food")),
+      // Static app bar: this page's only scrollable is the inner results
+      // list, so hide-on-scroll would fire on a list that isn't the page.
+      appBar: AppBar(title: const Text("Food")),
       body: BackgroundImageBody(
         imagePath: "assets/img/food.png",
-        child: NotificationListener<UserScrollNotification>(
-          onNotification: handleScrollNotification,
-          child: Padding(
+        child: Padding(
           padding: EdgeInsets.fromLTRB(
               24, MediaQuery.of(context).padding.top + kToolbarHeight + 8, 24, 24),
           child: Column(
@@ -494,7 +493,6 @@ class FoodHubScreenState extends State<FoodHubScreen> with AppBarVisibilityMixin
                     : _buildCustomFoodBody(),
               ),
             ],
-          ),
           ),
         ),
       ),
@@ -624,6 +622,10 @@ class FoodHubScreenState extends State<FoodHubScreen> with AppBarVisibilityMixin
         if (_isSearching) const LinearProgressIndicator(),
         Expanded(
           child: ListView(
+            // Without this the list absorbs the ambient safe-area padding
+            // (app-bar height, since the body extends behind it) as a gap
+            // above the first section.
+            padding: EdgeInsets.zero,
             children: [
               if (recents.isNotEmpty) ...[
                 Text("Recent", style: Theme.of(context).textTheme.labelLarge),
@@ -740,6 +742,7 @@ class FoodHubScreenState extends State<FoodHubScreen> with AppBarVisibilityMixin
     return RefreshIndicator(
       onRefresh: _loadCustomFoods,
       child: ListView.builder(
+        padding: EdgeInsets.zero,
         itemCount: _customFoods.length,
         itemBuilder: (context, index) {
           final food = _customFoods[index];

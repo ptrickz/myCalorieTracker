@@ -109,6 +109,44 @@ ThemeData buildAppTheme() {
       checkColor: const WidgetStatePropertyAll(Colors.black),
       side: const BorderSide(color: AppColors.border),
     ),
+    // Material's default dark picker uses tinted greys; pin it to the app's
+    // neutral surfaces with the lime accent for selection.
+    datePickerTheme: DatePickerThemeData(
+      backgroundColor: AppColors.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      headerBackgroundColor: AppColors.surfaceAlt,
+      headerForegroundColor: AppColors.textPrimary,
+      dividerColor: AppColors.border,
+      weekdayStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+      dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return AppColors.textSecondary.withValues(alpha: 0.4);
+        }
+        if (states.contains(WidgetState.selected)) return Colors.black;
+        return AppColors.textPrimary;
+      }),
+      dayBackgroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected) ? AppColors.accent : null,
+      ),
+      dayOverlayColor: WidgetStatePropertyAll(AppColors.accent.withValues(alpha: 0.12)),
+      todayForegroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected) ? Colors.black : AppColors.accent,
+      ),
+      todayBackgroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected) ? AppColors.accent : null,
+      ),
+      todayBorder: const BorderSide(color: AppColors.accent),
+      yearForegroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected) ? Colors.black : AppColors.textPrimary,
+      ),
+      yearBackgroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected) ? AppColors.accent : null,
+      ),
+      cancelButtonStyle: TextButton.styleFrom(foregroundColor: AppColors.accent),
+      confirmButtonStyle: TextButton.styleFrom(foregroundColor: AppColors.accent),
+    ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: AppColors.surface,
       indicatorColor: AppColors.accent.withValues(alpha: 0.18),

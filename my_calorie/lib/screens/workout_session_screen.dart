@@ -493,14 +493,43 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
     }
   }
 
+  /// Minutes once past a minute (trimming a trailing .0), seconds below that.
+  String _formatDuration(int seconds) {
+    if (seconds < 60) return "$seconds sec";
+    final minutes = seconds / 60;
+    return minutes == minutes.roundToDouble()
+        ? "${minutes.round()} min"
+        : "${minutes.toStringAsFixed(1)} min";
+  }
+
   String _formatSet(Map<String, dynamic> s) {
     final seconds = (s["durationSeconds"] as num?)?.toInt();
-    if (seconds != null) {
-      final duration = seconds >= 60 && seconds % 60 == 0 ? "${seconds ~/ 60} min" : "$seconds sec";
-      return "Set ${s["setNumber"]}: $duration";
-    }
+    if (seconds != null) return "Set ${s["setNumber"]}: ${_formatDuration(seconds)}";
     final weight = s["weightKg"] != null ? " @ ${s["weightKg"]}kg" : "";
     return "Set ${s["setNumber"]}: ${s["reps"]} reps$weight";
+  }
+
+  /// Card subtitle. For duration-based work (cardio, holds) the target range
+  /// is far less useful than what was actually done, so once something is
+  /// logged we show the total logged time instead of the plan.
+  String get _subtitle {
+    final count = _loggedSets.length;
+
+    if (_isTimed && count > 0) {
+      final total = _loggedSets.fold<int>(
+        0,
+        (sum, s) => sum + ((s["durationSeconds"] as num?)?.toInt() ?? 0),
+      );
+      return "${_formatDuration(total)} · $count logged";
+    }
+
+    final sets = widget.exercise["defaultSets"];
+    final reps = widget.exercise["defaultReps"];
+    return [
+      // Custom exercises have no target — show just the count.
+      if (sets != null && reps != null) "$sets x $reps",
+      "$count logged",
+    ].join(" · ");
   }
 
   @override
@@ -514,12 +543,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
       child: ExpansionTile(
         title: Text(widget.exercise["name"] as String),
         subtitle: Text(
-          // Custom exercises have no target sets/reps — show just the count.
-          [
-            if (widget.exercise["defaultSets"] != null && widget.exercise["defaultReps"] != null)
-              "${widget.exercise["defaultSets"]} x ${widget.exercise["defaultReps"]}",
-            "${_loggedSets.length} logged",
-          ].join(" · "),
+          _subtitle,
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         onExpansionChanged: (expanded) {

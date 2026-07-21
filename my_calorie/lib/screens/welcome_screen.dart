@@ -44,7 +44,7 @@ class WelcomeScreen extends StatelessWidget {
 
                 _SocialButton(
                   label: "Sign In With Email",
-                  icon: Icons.email_outlined,
+                  icon: const Icon(Icons.email_outlined, color: Colors.black, size: 30),
                   background: AppColors.accent,
                   foreground: Colors.black,
                   onPressed: () => Navigator.of(context).push(
@@ -54,7 +54,7 @@ class WelcomeScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 _SocialButton(
                   label: "Sign In With Google",
-                  icon: Icons.g_mobiledata,
+                  icon: Image.asset("assets/img/google.png", width: 24, height: 24),
                   background: Colors.white,
                   foreground: Colors.black,
                   onPressed: () => _showComingSoon(context, "Google"),
@@ -62,7 +62,7 @@ class WelcomeScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 _SocialButton(
                   label: "Sign In With Facebook",
-                  icon: Icons.facebook,
+                  icon: const Icon(Icons.facebook, color: Colors.white, size: 30),
                   background: const Color(0xFF1877F2),
                   foreground: Colors.white,
                   onPressed: () => _showComingSoon(context, "Facebook"),
@@ -101,7 +101,8 @@ class WelcomeScreen extends StatelessWidget {
 
 class _SocialButton extends StatelessWidget {
   final String label;
-  final IconData icon;
+  // A widget rather than IconData so providers can use their brand mark.
+  final Widget icon;
   final Color background;
   final Color foreground;
   final VoidCallback onPressed;
@@ -120,7 +121,7 @@ class _SocialButton extends StatelessWidget {
       width: 300,
       child: ElevatedButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, color: foreground, size: 30),
+        icon: icon,
         label: Text(label),
         style: ElevatedButton.styleFrom(
           backgroundColor: background,

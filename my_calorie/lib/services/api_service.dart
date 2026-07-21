@@ -428,11 +428,16 @@ class ApiService {
     return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, dynamic>> createWorkoutLog(String token, {required String venue, String? notes}) async {
+  Future<Map<String, dynamic>> createWorkoutLog(
+    String token, {
+    required String venue,
+    String? notes,
+    String? loggedAt,
+  }) async {
     final response = await http.post(
       Uri.parse("$apiBaseUrl/workout-logs"),
       headers: _authHeaders(token, withJson: true),
-      body: jsonEncode({"venue": venue, "notes": ?notes}),
+      body: jsonEncode({"venue": venue, "notes": ?notes, "loggedAt": ?loggedAt}),
     );
 
     if (response.statusCode != 201) {

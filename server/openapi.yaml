@@ -516,6 +516,11 @@ components:
           example: Gym
         notes:
           type: string
+        loggedAt:
+          type: string
+          format: date-time
+          description: When the session happened. Omit for now; set it to backfill a session missed on the day.
+          example: "2026-07-20T18:30:00.000Z"
 
     WorkoutSetLog:
       type: object
@@ -1144,7 +1149,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/WorkoutLog"
         "400":
-          description: Missing venue
+          description: Missing venue or invalid loggedAt
           content:
             application/json:
               schema:

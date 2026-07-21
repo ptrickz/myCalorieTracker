@@ -9,9 +9,9 @@ import "../widgets/app_toast.dart";
 import "../widgets/background_image_body.dart";
 import "../widgets/hiding_app_bar.dart";
 import "../widgets/seven_day_trend_card.dart";
-import "../widgets/streak_card.dart";
 import "../widgets/weekly_loss_goal_slider.dart";
 import "../widgets/weight_trend_card.dart";
+import "welcome_screen.dart";
 
 /// Combined profile + progress tab: account details and goals, followed by
 /// the streak / weekly-trend / weight-trend analytics that used to live on
@@ -58,9 +58,6 @@ class ProfileScreenState extends State<ProfileScreen> with AppBarVisibilityMixin
 
   // Progress analytics (moved here from the old Status tab).
   List<Map<String, dynamic>> _weightLogs = const [];
-  int _currentStreak = 0;
-  int _longestStreak = 0;
-  bool _loggedToday = false;
   List<Map<String, dynamic>> _rangeDays = const [];
 
   bool _isEditing = false;
@@ -109,14 +106,10 @@ class ProfileScreenState extends State<ProfileScreen> with AppBarVisibilityMixin
       final token = await _authStorage.readToken();
       final profile = await _apiService.getProfile(token!);
       final weightLogs = await _apiService.getWeightLogs(token);
-      final streak = await _apiService.getStreak(token);
       final range = await _apiService.getLogsRange(token);
       if (!mounted) return;
       setState(() {
         _weightLogs = weightLogs;
-        _currentStreak = streak["currentStreak"] as int;
-        _longestStreak = streak["longestStreak"] as int;
-        _loggedToday = streak["loggedToday"] as bool;
         _rangeDays = (range["days"] as List).cast<Map<String, dynamic>>();
         _email = profile["email"] as String?;
         final dob = profile["dateOfBirth"] as String?;
@@ -176,6 +169,15 @@ class ProfileScreenState extends State<ProfileScreen> with AppBarVisibilityMixin
       _errorMessage = null;
       _isEditing = false;
     });
+  }
+
+  Future<void> _handleLogout() async {
+    await _authStorage.clearToken();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      (route) => false,
+    );
   }
 
   /// Public so HomeShell's center FAB can trigger it for this tab.
@@ -290,14 +292,6 @@ class ProfileScreenState extends State<ProfileScreen> with AppBarVisibilityMixin
               padding: EdgeInsets.fromLTRB(
                   24, MediaQuery.of(context).padding.top + kToolbarHeight + 8, 24, 24),
               children: [
-                _buildHeaderCard(),
-                const SizedBox(height: 24),
-                StreakCard(
-                  currentStreak: _currentStreak,
-                  longestStreak: _longestStreak,
-                  loggedToday: _loggedToday,
-                ),
-                const SizedBox(height: 16),
                 SevenDayTrendCard(days: _rangeDays),
                 const SizedBox(height: 16),
                 WeightTrendCard(
@@ -352,35 +346,26 @@ class ProfileScreenState extends State<ProfileScreen> with AppBarVisibilityMixin
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(_errorMessage!, style: const TextStyle(color: AppColors.error)),
                   ),
+                // Sits at the very bottom, out of the way of everyday use.
+                if (!_isEditing) ...[
+                  const SizedBox(height: 32),
+                  TextButton.icon(
+                    onPressed: _handleLogout,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: const Text("Log out"),
+                  ),
+                  // Clears the center-docked FAB, which floats over the
+                  // bottom of the list.
+                  const SizedBox(height: 72),
+                ],
               ],
             ),
           ),
           ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const CircleAvatar(
-              radius: 28,
-              backgroundColor: AppColors.surfaceAlt,
-              child: Icon(Icons.person, size: 32, color: AppColors.accent),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                _email ?? "",
-                style: Theme.of(context).textTheme.titleMedium,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -402,6 +387,8 @@ class ProfileScreenState extends State<ProfileScreen> with AppBarVisibilityMixin
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              // Email comes from the account and isn't editable here.
+              _buildInfoTile(Icons.alternate_email, "Email", _email ?? "Not set"),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.cake_outlined, color: AppColors.textSecondary),
@@ -458,6 +445,7 @@ class ProfileScreenState extends State<ProfileScreen> with AppBarVisibilityMixin
     return Card(
       child: Column(
         children: [
+          _buildInfoTile(Icons.alternate_email, "Email", _email ?? "Not set"),
           _buildInfoTile(
             Icons.cake_outlined,
             "Date of birth",

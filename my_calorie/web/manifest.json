@@ -4,7 +4,7 @@
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0D0D0D",
-    "theme_color": "#0D0D0D",
+    "theme_color": "#C6FF3D",
     "description": "Calorie and protein tracking with weigh-in trends and streaks.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,

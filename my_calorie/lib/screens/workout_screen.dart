@@ -75,6 +75,8 @@ class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin
     if (_isStarting) return;
     final otherController = TextEditingController();
     var selectedVenue = _venueOptions.first;
+    // Defaults to today; can be moved back to backfill a missed session.
+    var selectedDate = DateTime.now();
 
     final venue = await showCupertinoDialog<String>(
       context: context,
@@ -109,6 +111,34 @@ class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin
                       placeholder: "Venue name",
                     ),
                   ],
+                  const SizedBox(height: 4),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.event_outlined,
+                      color: AppColors.textSecondary,
+                    ),
+                    title: Text(
+                      DateUtils.isSameDay(selectedDate, DateTime.now())
+                          ? "Today"
+                          : _formatShortDate(selectedDate),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    trailing: const Icon(Icons.edit_calendar, size: 18),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 365),
+                        ),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        setDialogState(() => selectedDate = picked);
+                      }
+                    },
+                  ),
                 ],
               ),
             ),
@@ -137,7 +167,21 @@ class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin
     setState(() => _isStarting = true);
     try {
       final token = await _authStorage.readToken();
-      final log = await _apiService.createWorkoutLog(token!, venue: venue);
+      // Keep the current time-of-day so a backfilled session lands sensibly
+      // on the week calendar rather than at midnight.
+      final now = DateTime.now();
+      final loggedAt = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        now.hour,
+        now.minute,
+      );
+      final log = await _apiService.createWorkoutLog(
+        token!,
+        venue: venue,
+        loggedAt: loggedAt.toIso8601String(),
+      );
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(

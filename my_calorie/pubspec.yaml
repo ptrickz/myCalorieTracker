@@ -59,6 +59,11 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
+  web:
+    generate: true
+    image_path: "assets/img/launcher_icon.png"
+    background_color: "#0D0D0D"
+    theme_color: "#C6FF3D"
   image_path: "assets/img/launcher_icon.png"
   # iOS icons can't have transparency; fill the rounded corners with the
   # app's background black.

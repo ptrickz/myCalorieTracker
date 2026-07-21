@@ -17,14 +17,29 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { venue, notes } = req.body;
+  const { venue, notes, loggedAt } = req.body;
 
   if (!venue) {
     return res.status(400).json({ error: "venue is required" });
   }
 
+  // Optional so a session missed on the day can be backfilled; omitted means
+  // "now" via the schema default.
+  let loggedAtDate;
+  if (loggedAt !== undefined) {
+    loggedAtDate = new Date(loggedAt);
+    if (Number.isNaN(loggedAtDate.getTime())) {
+      return res.status(400).json({ error: "loggedAt must be a valid date" });
+    }
+  }
+
   const log = await prisma.workoutLog.create({
-    data: { userId: req.userId, venue, notes: notes || null },
+    data: {
+      userId: req.userId,
+      venue,
+      notes: notes || null,
+      ...(loggedAtDate ? { loggedAt: loggedAtDate } : {}),
+    },
   });
 
   res.status(201).json(log);

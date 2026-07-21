@@ -147,7 +147,16 @@ const server = http.createServer((req, res) => {
       return send(res, 200, weightLogs);
     }
 
-    if (req.method === "GET" && (p === "/foods" || p === "/foods/mine")) return send(res, 200, []);
+    if (req.method === "GET" && (p === "/foods" || p === "/foods/mine")) {
+      return send(res, 200, [
+        { id: "f1", name: "Air Fried Chicken Teriyaki w Rice, Vege", caloriesPer100g: 111, proteinPer100g: 9, carbsPer100g: 12, fatPer100g: 3, isRecent: true },
+        { id: "f2", name: "Chicken Cajun Wrap", caloriesPer100g: 155, proteinPer100g: 11, carbsPer100g: 16, fatPer100g: 5, isRecent: true },
+        { id: "f3", name: "Nasi Campur", caloriesPer100g: 159, proteinPer100g: 8, carbsPer100g: 20, fatPer100g: 5, isRecent: true },
+        { id: "f4", name: "Urban Fuod", caloriesPer100g: 400, proteinPer100g: 20, carbsPer100g: 40, fatPer100g: 15 },
+        { id: "f5", name: "Haus Boom Calorie Free Zero Sugar", caloriesPer100g: 1, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 0 },
+        { id: "f6", name: "Greek Yogurt", caloriesPer100g: 88, proteinPer100g: 10, carbsPer100g: 5, fatPer100g: 3 },
+      ]);
+    }
     if (req.method === "GET" && p === "/exercises") return send(res, 200, []);
     if (req.method === "GET" && p === "/workout-logs") {
       const monday = new Date();

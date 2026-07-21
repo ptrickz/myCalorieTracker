@@ -2,12 +2,12 @@ import "package:flutter/material.dart";
 import "package:my_calorie/widgets/background_image_body.dart";
 import "../services/api_service.dart";
 import "../services/auth_storage.dart";
-import "../widgets/app_logo.dart";
 import "../widgets/deficit_pace_card.dart";
 import "../widgets/hiding_app_bar.dart";
 import "../widgets/macro_split_donut.dart";
 import "../widgets/meal_breakdown_card.dart";
 import "../widgets/nutrient_hero_card.dart";
+import "../widgets/streak_card.dart";
 import "welcome_screen.dart";
 
 class DashboardScreen extends StatefulWidget {
@@ -38,6 +38,9 @@ class _DashboardScreenState extends State<DashboardScreen> with AppBarVisibility
   double? _maintenanceTdee;
   String? _goalType;
   double _weeklyLossGoalKg = 0.5;
+  int _currentStreak = 0;
+  int _longestStreak = 0;
+  bool _loggedToday = false;
 
   bool get _isWeekendToday =>
       DateTime.now().weekday == DateTime.saturday ||
@@ -65,8 +68,12 @@ class _DashboardScreenState extends State<DashboardScreen> with AppBarVisibility
       final profile = await _apiService.getProfile(token);
       final logs = await _apiService.getLogs(token);
       final range = await _apiService.getLogsRange(token);
+      final streak = await _apiService.getStreak(token);
 
       setState(() {
+        _currentStreak = streak["currentStreak"] as int;
+        _longestStreak = streak["longestStreak"] as int;
+        _loggedToday = streak["loggedToday"] as bool;
         _entries = (logs["entries"] as List).cast<Map<String, dynamic>>();
         _rangeDays = (range["days"] as List).cast<Map<String, dynamic>>();
         _maintenanceTdee =
@@ -90,11 +97,6 @@ class _DashboardScreenState extends State<DashboardScreen> with AppBarVisibility
     }
   }
 
-  Future<void> _handleLogout() async {
-    await _authStorage.clearToken();
-    _goToWelcome();
-  }
-
   void _goToWelcome() {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -112,21 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> with AppBarVisibility
       // Body extends behind the transparent app bar so the background photo
       // runs edge-to-edge; the list adds top padding to clear it.
       extendBodyBehindAppBar: true,
-      appBar: HidingAppBar(
-        visible: appBarVisible,
-        title: const Text("Home"),
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 12),
-          child: AppLogo(radius: 18),
-        ),
-        actions: [
-          IconButton(
-            onPressed: _handleLogout,
-            icon: const Icon(Icons.logout),
-            tooltip: "Logout",
-          ),
-        ],
-      ),
+      appBar: HidingAppBar(visible: appBarVisible, title: const Text("Home")),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -146,6 +134,12 @@ class _DashboardScreenState extends State<DashboardScreen> with AppBarVisibility
                   padding: EdgeInsets.fromLTRB(
                       24, MediaQuery.of(context).padding.top + kToolbarHeight + 8, 24, 24),
                   children: [
+                    StreakCard(
+                      currentStreak: _currentStreak,
+                      longestStreak: _longestStreak,
+                      loggedToday: _loggedToday,
+                    ),
+                    const SizedBox(height: 16),
                     NutrientHeroCard(
                       icon: Icons.local_fire_department,
                       consumed: consumed,
