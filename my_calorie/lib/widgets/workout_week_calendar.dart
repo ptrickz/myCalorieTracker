@@ -19,8 +19,11 @@ class WorkoutWeekCalendar extends StatefulWidget {
 }
 
 // Kept in sync between the WeekView config and the initial-scroll math.
-const _calStartHour = 5;
-const _calEndHour = 24;
+// Waking/training hours only — trims the dead pre-dawn and post-midnight
+// rows. The end stays at 23 so late-evening sessions (the event mapping caps
+// them at 22:45) remain visible.
+const _calStartHour = 6;
+const _calEndHour = 23;
 const _calCardHeight = 200.0;
 // Custom chevron header (above the grid) and the weekday-titles row (inside
 // the grid), each roughly this tall — used to size the scrollable window.

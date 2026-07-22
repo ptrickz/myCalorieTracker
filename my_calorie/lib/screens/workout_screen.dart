@@ -6,6 +6,7 @@ import "../theme.dart";
 import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
 import "../widgets/background_image_body.dart";
+import "../widgets/empty_state.dart";
 import "../widgets/hiding_app_bar.dart";
 import "../widgets/workout_week_calendar.dart";
 import "workout_session_screen.dart";
@@ -247,9 +248,10 @@ class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin
                     ),
                     const SizedBox(height: 8),
                     if (_recentLogs.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text("No sessions logged yet."),
+                      const EmptyState(
+                        icon: Icons.fitness_center_outlined,
+                        title: "No sessions logged yet",
+                        hint: "Tap + to log your first workout.",
                       )
                     else
                       ..._buildWeekGroups(),

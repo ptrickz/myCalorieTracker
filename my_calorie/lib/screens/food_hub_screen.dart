@@ -9,6 +9,7 @@ import "../theme.dart";
 import "../widgets/app_text_field.dart";
 import "../widgets/app_toast.dart";
 import "../widgets/background_image_body.dart";
+import "../widgets/empty_state.dart";
 import "../widgets/food_photo_picker.dart";
 import "../widgets/photo_viewer.dart";
 
@@ -732,13 +733,14 @@ class FoodHubScreenState extends State<FoodHubScreen> {
                   ),
                 ),
                 if (_entries.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-                    child: Text(
-                      _isViewingToday
-                          ? "Nothing logged yet today."
-                          : "Nothing logged this day.",
-                    ),
+                  EmptyState(
+                    icon: Icons.restaurant_outlined,
+                    title: _isViewingToday
+                        ? "Nothing logged yet today"
+                        : "Nothing logged this day",
+                    hint: _isViewingToday
+                        ? "Search or scan a food to start your day."
+                        : null,
                   )
                 else
                   Flexible(
@@ -1004,7 +1006,11 @@ class FoodHubScreenState extends State<FoodHubScreen> {
     }
     if (_customFoods.isEmpty) {
       return const Center(
-        child: Text("You haven't added any custom foods yet."),
+        child: EmptyState(
+          icon: Icons.add_box_outlined,
+          title: "No custom foods yet",
+          hint: "Tap + to add a food that isn't in the list.",
+        ),
       );
     }
 
