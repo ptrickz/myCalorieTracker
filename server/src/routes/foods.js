@@ -110,6 +110,85 @@ router.post("/", async (req, res) => {
   res.status(201).json(food);
 });
 
+// Accepts the fixed macro-import JSON shape a user might generate while
+// discussing a meal/label with Claude in a claude.ai chat (see docs), and
+// creates it as a CUSTOM food — a lightweight alternative to typing the same
+// numbers into the Custom Food form by hand. The client sends the already
+//-parsed file contents as the request body (or any hand-built JSON matching
+// the shape); there's no multipart upload involved.
+const IMPORT_MACRO_FIELDS = ["kcal", "proteinG", "carbsG", "fatG"];
+
+function validateFoodImport(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return "Request body must be a JSON object";
+  }
+  if (typeof body.name !== "string" || !body.name.trim()) {
+    return "name is required and must be a non-empty string";
+  }
+  if (typeof body.estimatedTotalWeightG !== "number" || !(body.estimatedTotalWeightG > 0)) {
+    return "estimatedTotalWeightG is required and must be a positive number";
+  }
+  if (!body.macrosPer100g || typeof body.macrosPer100g !== "object") {
+    return "macrosPer100g is required";
+  }
+  for (const field of IMPORT_MACRO_FIELDS) {
+    const value = body.macrosPer100g[field];
+    if (typeof value !== "number" || Number.isNaN(value) || value < 0) {
+      return `macrosPer100g.${field} is required and must be a non-negative number`;
+    }
+  }
+  if (body.totalMacros !== undefined) {
+    if (typeof body.totalMacros !== "object" || body.totalMacros === null || Array.isArray(body.totalMacros)) {
+      return "totalMacros must be an object if present";
+    }
+    // Numbers here may carry rounding from chat-side math, so this is a
+    // sanity check for obvious errors (e.g. a decimal-place slip), not an
+    // exact-match requirement — tolerate ~10%, with a floor so tiny values
+    // (near-zero fat, etc.) don't trip on rounding alone.
+    const scale = body.estimatedTotalWeightG / 100;
+    const mismatches = [];
+    for (const field of IMPORT_MACRO_FIELDS) {
+      const provided = body.totalMacros[field];
+      if (typeof provided !== "number") continue;
+      const expected = body.macrosPer100g[field] * scale;
+      const tolerance = Math.max(expected * 0.1, field === "kcal" ? 5 : 1);
+      if (Math.abs(provided - expected) > tolerance) {
+        mismatches.push(`${field} (got ${provided}, expected ~${expected.toFixed(1)})`);
+      }
+    }
+    if (mismatches.length > 0) {
+      return `totalMacros doesn't match macrosPer100g × weight/100: ${mismatches.join(", ")}`;
+    }
+  }
+  if (body.dateLogged !== undefined && Number.isNaN(new Date(body.dateLogged).getTime())) {
+    return "dateLogged must be a valid date if present";
+  }
+  return null;
+}
+
+router.post("/import", async (req, res) => {
+  const validationError = validateFoodImport(req.body);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
+  }
+
+  const { name, macrosPer100g } = req.body;
+
+  const food = await prisma.foodItem.create({
+    data: {
+      name: name.trim(),
+      caloriesPer100g: macrosPer100g.kcal,
+      proteinPer100g: macrosPer100g.proteinG,
+      carbsPer100g: macrosPer100g.carbsG,
+      fatPer100g: macrosPer100g.fatG,
+      source: "CUSTOM",
+      createdByUserId: req.userId,
+    },
+  });
+
+  res.status(201).json(food);
+});
+
 router.patch("/:id", async (req, res) => {
   const food = await prisma.foodItem.findUnique({ where: { id: req.params.id } });
 

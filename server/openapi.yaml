@@ -223,6 +223,63 @@ components:
         photoBase64:
           type: string
 
+    FoodImport:
+      type: object
+      description: >-
+        Fixed shape for macro estimates worked out in a claude.ai chat (e.g.
+        reading a label together, or calculating a meal from known
+        components) and imported as a custom food without retyping. `source`
+        here describes how the *chat* arrived at the numbers — unrelated to
+        FoodItem's own `source` enum, which this endpoint always sets to
+        CUSTOM.
+      required: [name, estimatedTotalWeightG, macrosPer100g]
+      properties:
+        name:
+          type: string
+          example: Burrito Wrap (rice + chicken)
+        estimatedTotalWeightG:
+          type: number
+          example: 300
+        macrosPer100g:
+          type: object
+          required: [kcal, proteinG, carbsG, fatG]
+          properties:
+            kcal:
+              type: number
+            proteinG:
+              type: number
+            carbsG:
+              type: number
+            fatG:
+              type: number
+          example: { kcal: 175, proteinG: 14.7, carbsG: 17.3, fatG: 5.2 }
+        totalMacros:
+          type: object
+          description: >-
+            macrosPer100g × (estimatedTotalWeightG / 100). Optional, but if
+            present must be within ~10% of that — a sanity check against
+            obvious calculation errors, not treated as authoritative.
+          properties:
+            kcal:
+              type: number
+            proteinG:
+              type: number
+            carbsG:
+              type: number
+            fatG:
+              type: number
+          example: { kcal: 525, proteinG: 44, carbsG: 52, fatG: 15 }
+        confidence:
+          type: string
+          example: "estimate - based on known component macros"
+        source:
+          type: string
+          enum: [photo_estimate, label_read, manual_calculation]
+        dateLogged:
+          type: string
+          format: date-time
+          description: When known; informational only (not applied by this endpoint).
+
     FoodItemUpdate:
       type: object
       properties:
@@ -731,6 +788,37 @@ paths:
                 $ref: "#/components/schemas/FoodItem"
         "400":
           description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /foods/import:
+    post:
+      summary: Import a food from a claude.ai macro-estimate JSON file
+      description: >-
+        Creates a CUSTOM food from the fixed macro-import shape (see
+        FoodImport) — the file a user might export from a claude.ai chat
+        after discussing a meal or nutrition label. Client sends the parsed
+        file contents as the request body; there's no multipart upload.
+        Returns the created FoodItem so the client can immediately offer to
+        log it (user reviews and confirms, same as vision-log — nothing here
+        creates a LogEntry).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FoodImport"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoodItem"
+        "400":
+          description: Missing/invalid fields, or totalMacros doesn't match macrosPer100g × weight/100
           content:
             application/json:
               schema:

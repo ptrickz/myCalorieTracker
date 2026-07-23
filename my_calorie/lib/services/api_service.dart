@@ -201,6 +201,9 @@ class ApiService {
     required String foodItemId,
     required double servingGrams,
     required String mealType,
+    // ISO 8601. Lets an imported meal (see importFood) log against the date
+    // it was actually eaten rather than today, when that's known.
+    String? loggedAt,
   }) async {
     final response = await http.post(
       Uri.parse("$apiBaseUrl/logs"),
@@ -209,12 +212,35 @@ class ApiService {
         "foodItemId": foodItemId,
         "servingGrams": servingGrams,
         "mealType": mealType,
+        "loggedAt": ?loggedAt,
       }),
     );
 
     if (response.statusCode != 201) {
       throw ApiException(_extractError(response, "Could not log this food"));
     }
+  }
+
+  /// Creates a CUSTOM food from the fixed macro-import JSON shape (see
+  /// docs/foodImport — the file a user might get from discussing a meal or
+  /// nutrition label with Claude in a claude.ai chat). [importJson] is the
+  /// already-parsed file contents; this never creates a LogEntry itself —
+  /// the caller reviews and confirms that as a separate step.
+  Future<Map<String, dynamic>> importFood(
+    String token,
+    Map<String, dynamic> importJson,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/foods/import"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode(importJson),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(_extractError(response, "Could not import this food"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<void> updateLogEntry(

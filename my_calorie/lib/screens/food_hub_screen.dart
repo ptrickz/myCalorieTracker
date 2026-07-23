@@ -12,6 +12,7 @@ import "../widgets/empty_state.dart";
 import "../widgets/food_photo_picker.dart";
 import "../widgets/photo_viewer.dart";
 import "food_search_screen.dart";
+import "import_food_screen.dart";
 
 enum FoodHubTab { logFood, customFood }
 
@@ -112,6 +113,19 @@ class FoodHubScreenState extends State<FoodHubScreen> {
         builder: (_) => FoodSearchScreen(
           initialMeal: _mealTypeForNow(),
           onChanged: () => _loadDayLogs(_viewedDate),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openImport() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ImportFoodScreen(
+          onChanged: () {
+            _loadCustomFoods();
+            _loadDayLogs(_viewedDate);
+          },
         ),
       ),
     );
@@ -370,7 +384,16 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(title: const Text("Food")),
+      appBar: AppBar(
+        title: const Text("Food"),
+        actions: [
+          IconButton(
+            onPressed: _openImport,
+            icon: const Icon(Icons.file_upload_outlined),
+            tooltip: "Import from file",
+          ),
+        ],
+      ),
       body: BackgroundImageBody(
         imagePath: "assets/img/food.png",
         child: Padding(

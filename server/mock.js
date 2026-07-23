@@ -147,6 +147,70 @@ const server = http.createServer((req, res) => {
       return send(res, 200, weightLogs);
     }
 
+    if (req.method === "POST" && p === "/foods/import") {
+      // Mirrors the real /foods/import validation closely enough for UI
+      // testing: required fields present/typed, totalMacros sanity check.
+      const macroFields = ["kcal", "proteinG", "carbsG", "fatG"];
+      if (typeof body.name !== "string" || !body.name.trim()) {
+        return send(res, 400, { error: "name is required and must be a non-empty string" });
+      }
+      if (typeof body.estimatedTotalWeightG !== "number" || !(body.estimatedTotalWeightG > 0)) {
+        return send(res, 400, { error: "estimatedTotalWeightG is required and must be a positive number" });
+      }
+      if (!body.macrosPer100g || typeof body.macrosPer100g !== "object") {
+        return send(res, 400, { error: "macrosPer100g is required" });
+      }
+      for (const field of macroFields) {
+        if (typeof body.macrosPer100g[field] !== "number" || body.macrosPer100g[field] < 0) {
+          return send(res, 400, { error: `macrosPer100g.${field} is required and must be a non-negative number` });
+        }
+      }
+      if (body.totalMacros && typeof body.totalMacros === "object") {
+        const scale = body.estimatedTotalWeightG / 100;
+        for (const field of macroFields) {
+          const provided = body.totalMacros[field];
+          if (typeof provided !== "number") continue;
+          const expected = body.macrosPer100g[field] * scale;
+          const tolerance = Math.max(expected * 0.1, field === "kcal" ? 5 : 1);
+          if (Math.abs(provided - expected) > tolerance) {
+            return send(res, 400, {
+              error: `totalMacros doesn't match macrosPer100g × weight/100: ${field} (got ${provided}, expected ~${expected.toFixed(1)})`,
+            });
+          }
+        }
+      }
+      const food = {
+        id: `import-${Date.now()}`,
+        name: body.name.trim(),
+        caloriesPer100g: body.macrosPer100g.kcal,
+        proteinPer100g: body.macrosPer100g.proteinG,
+        carbsPer100g: body.macrosPer100g.carbsG,
+        fatPer100g: body.macrosPer100g.fatG,
+        source: "CUSTOM",
+        createdByUserId: user.id,
+      };
+      return send(res, 201, food);
+    }
+
+    if (req.method === "POST" && p === "/logs") {
+      if (!body.foodItemId || !body.servingGrams || !body.mealType) {
+        return send(res, 400, { error: "foodItemId, servingGrams, and mealType are required" });
+      }
+      const entry = {
+        id: `log-${Date.now()}`,
+        foodItem: { name: "Imported food" },
+        mealType: body.mealType,
+        servingGrams: body.servingGrams,
+        calories: body.servingGrams * 1.5,
+        protein: body.servingGrams * 0.1,
+        carbs: body.servingGrams * 0.2,
+        fat: body.servingGrams * 0.05,
+        loggedAt: body.loggedAt || new Date().toISOString(),
+      };
+      sampleEntries.push(entry);
+      return send(res, 201, entry);
+    }
+
     if (req.method === "GET" && (p === "/foods" || p === "/foods/mine")) {
       return send(res, 200, [
         { id: "f1", name: "Air Fried Chicken Teriyaki w Rice, Vege", caloriesPer100g: 111, proteinPer100g: 9, carbsPer100g: 12, fatPer100g: 3, isRecent: true },
