@@ -58,6 +58,37 @@ router.get("/:id", async (req, res) => {
   res.json(log);
 });
 
+// Edit a session's venue / notes / time — e.g. fixing the time on a session
+// that was logged late or on the wrong day.
+router.patch("/:id", async (req, res) => {
+  const log = await prisma.workoutLog.findUnique({ where: { id: req.params.id } });
+
+  if (!log || log.userId !== req.userId) {
+    return res.status(404).json({ error: "Workout log not found" });
+  }
+
+  const { venue, notes, loggedAt } = req.body;
+  const data = {};
+
+  if (venue !== undefined) {
+    if (typeof venue !== "string" || !venue.trim()) {
+      return res.status(400).json({ error: "venue must be a non-empty string" });
+    }
+    data.venue = venue.trim();
+  }
+  if (notes !== undefined) data.notes = notes || null;
+  if (loggedAt !== undefined) {
+    const loggedAtDate = new Date(loggedAt);
+    if (Number.isNaN(loggedAtDate.getTime())) {
+      return res.status(400).json({ error: "loggedAt must be a valid date" });
+    }
+    data.loggedAt = loggedAtDate;
+  }
+
+  const updated = await prisma.workoutLog.update({ where: { id: log.id }, data });
+  res.json(updated);
+});
+
 router.post("/:id/sets", async (req, res) => {
   const log = await prisma.workoutLog.findUnique({ where: { id: req.params.id } });
 

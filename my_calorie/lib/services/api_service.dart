@@ -537,6 +537,23 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  Future<void> updateWorkoutLog(
+    String token,
+    String workoutLogId, {
+    String? venue,
+    String? loggedAt,
+  }) async {
+    final response = await http.patch(
+      Uri.parse("$apiBaseUrl/workout-logs/$workoutLogId"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({"venue": ?venue, "loggedAt": ?loggedAt}),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not update this workout"));
+    }
+  }
+
   Future<Map<String, dynamic>> getWorkoutLog(String token, String workoutLogId) async {
     final response = await http.get(
       Uri.parse("$apiBaseUrl/workout-logs/$workoutLogId"),

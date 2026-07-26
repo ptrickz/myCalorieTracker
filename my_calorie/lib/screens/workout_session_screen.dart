@@ -26,6 +26,9 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   // exerciseId -> sets already logged in this session (loaded from the server
   // when re-opening a past session so they can be viewed and edited).
   Map<String, List<Map<String, dynamic>>> _existingSets = {};
+  // The session's own venue + time, so they can be shown and edited.
+  String? _venue;
+  DateTime? _loggedAt;
   bool _isLoading = true;
   Timer? _restTimer;
   int _restSecondsLeft = 0;
@@ -59,11 +62,108 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
       setState(() {
         _existingSets = byExercise;
         _exercises = exercises;
+        _venue = log["venue"] as String?;
+        _loggedAt = DateTime.parse(log["loggedAt"] as String).toLocal();
       });
     } catch (e) {
       if (mounted) AppToast.show(context, e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Edit the session's venue and time — e.g. a session logged late, or on the
+  /// wrong day.
+  Future<void> _editSession() async {
+    final venueController = TextEditingController(text: _venue ?? "");
+    var when = _loggedAt ?? DateTime.now();
+
+    final saved = await showCupertinoDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => CupertinoAlertDialog(
+          title: const Text("Edit session"),
+          content: Material(
+            type: MaterialType.transparency,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppTextField(controller: venueController, placeholder: "Where?"),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.event_outlined, color: AppColors.textSecondary),
+                    title: Text(
+                      "${when.year}-${when.month.toString().padLeft(2, '0')}-${when.day.toString().padLeft(2, '0')}, ${TimeOfDay.fromDateTime(when).format(context)}",
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    trailing: const Icon(Icons.edit_calendar, size: 18),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: when,
+                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date == null || !context.mounted) return;
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(when),
+                      );
+                      setDialogState(() => when = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                            (time ?? TimeOfDay.fromDateTime(when)).hour,
+                            (time ?? TimeOfDay.fromDateTime(when)).minute,
+                          ));
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text("Cancel"),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text("Save"),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved != true) return;
+    final venue = venueController.text.trim();
+    if (venue.isEmpty) {
+      if (!mounted) return;
+      AppToast.show(context, "Enter a venue");
+      return;
+    }
+
+    try {
+      final token = await _authStorage.readToken();
+      await _apiService.updateWorkoutLog(
+        token!,
+        widget.workoutLogId,
+        venue: venue,
+        loggedAt: when.toIso8601String(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _venue = venue;
+        _loggedAt = when;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
     }
   }
 
@@ -257,8 +357,27 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Workout Session"),
+        title: _venue == null
+            ? const Text("Workout Session")
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_venue!),
+                  if (_loggedAt != null)
+                    Text(
+                      "${_loggedAt!.year}-${_loggedAt!.month.toString().padLeft(2, '0')}-${_loggedAt!.day.toString().padLeft(2, '0')} · ${TimeOfDay.fromDateTime(_loggedAt!).format(context)}",
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                ],
+              ),
         actions: [
+          if (!_isLoading)
+            IconButton(
+              onPressed: _editSession,
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: "Edit venue & time",
+            ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text("Finish", style: TextStyle(color: AppColors.accent)),
