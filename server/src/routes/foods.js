@@ -1,14 +1,19 @@
 const express = require("express");
 const prisma = require("../db");
+const { ensureQuickAddFood } = require("../quickAddFood");
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
   const search = req.query.search?.trim();
 
+  // The quick-add placeholder food backs one-off calorie entries; never offer
+  // it as something to log.
+  const quickAddId = (await ensureQuickAddFood()).id;
+
   if (search) {
     const foods = await prisma.foodItem.findMany({
-      where: { name: { contains: search, mode: "insensitive" } },
+      where: { name: { contains: search, mode: "insensitive" }, id: { not: quickAddId } },
       orderBy: { name: "asc" },
       take: 50,
     });
@@ -22,7 +27,7 @@ router.get("/", async (req, res) => {
   // most recent entry, so its serving and meal are the last ones used — which
   // the client needs to offer one-tap re-logging.
   const recentLogEntries = await prisma.logEntry.findMany({
-    where: { userId: req.userId },
+    where: { userId: req.userId, foodItemId: { not: quickAddId } },
     orderBy: { loggedAt: "desc" },
     select: { foodItemId: true, servingGrams: true, mealType: true },
     distinct: ["foodItemId"],
@@ -47,7 +52,7 @@ router.get("/", async (req, res) => {
   const remainingSlots = 20 - orderedRecentFoods.length;
   const otherFoods = remainingSlots > 0
     ? await prisma.foodItem.findMany({
-        where: recentFoodIds.length ? { id: { notIn: recentFoodIds } } : undefined,
+        where: { id: { notIn: [...recentFoodIds, quickAddId] } },
         orderBy: { name: "asc" },
         take: remainingSlots,
       })

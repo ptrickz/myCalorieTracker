@@ -1,5 +1,6 @@
 const express = require("express");
 const prisma = require("../db");
+const { ensureQuickAddFood } = require("../quickAddFood");
 
 const router = express.Router();
 
@@ -184,6 +185,10 @@ router.post("/repeat-meal", async (req, res) => {
       const food = foodById.get(entry.foodItemId);
       // Skip anything whose food has since been deleted.
       if (!food) return [];
+      // Quick-add entries have no per-100g source (serving 0, macros absolute),
+      // so copy their amounts straight across; everything else recomputes from
+      // the food's current per-100g values.
+      const isQuickAdd = entry.servingGrams === 0;
       const scale = entry.servingGrams / 100;
       return prisma.logEntry.create({
         data: {
@@ -192,16 +197,63 @@ router.post("/repeat-meal", async (req, res) => {
           servingGrams: entry.servingGrams,
           mealType,
           loggedAt: now,
-          calories: food.caloriesPer100g * scale,
-          protein: food.proteinPer100g * scale,
-          carbs: food.carbsPer100g * scale,
-          fat: food.fatPer100g * scale,
+          calories: isQuickAdd ? entry.calories : food.caloriesPer100g * scale,
+          protein: isQuickAdd ? entry.protein : food.proteinPer100g * scale,
+          carbs: isQuickAdd ? entry.carbs : food.carbsPer100g * scale,
+          fat: isQuickAdd ? entry.fat : food.fatPer100g * scale,
         },
       });
     }),
   );
 
   res.status(201).json({ created: created.length });
+});
+
+// A one-off calorie/macro entry with no reusable food — for restaurant meals
+// and the like where you know the total but not a per-100g breakdown. Only
+// calories are required; macros default to 0. Attaches to the shared
+// placeholder food so it satisfies LogEntry's relation without polluting any
+// food list.
+router.post("/quick-add", async (req, res) => {
+  const { calories, protein, carbs, fat, mealType, loggedAt } = req.body;
+
+  if (typeof calories !== "number" || !(calories > 0)) {
+    return res.status(400).json({ error: "calories must be a positive number" });
+  }
+  if (!mealType) {
+    return res.status(400).json({ error: "mealType is required" });
+  }
+  for (const [key, value] of [["protein", protein], ["carbs", carbs], ["fat", fat]]) {
+    if (value !== undefined && (typeof value !== "number" || value < 0)) {
+      return res.status(400).json({ error: `${key} must be a non-negative number if present` });
+    }
+  }
+  let loggedAtDate;
+  if (loggedAt !== undefined) {
+    loggedAtDate = new Date(loggedAt);
+    if (Number.isNaN(loggedAtDate.getTime())) {
+      return res.status(400).json({ error: "loggedAt must be a valid date" });
+    }
+  }
+
+  const food = await ensureQuickAddFood();
+  const entry = await prisma.logEntry.create({
+    data: {
+      userId: req.userId,
+      foodItemId: food.id,
+      // No serving concept for a bare amount — the macros below are absolute.
+      servingGrams: 0,
+      mealType,
+      loggedAt: loggedAtDate ?? new Date(),
+      calories,
+      protein: protein ?? 0,
+      carbs: carbs ?? 0,
+      fat: fat ?? 0,
+    },
+    include: { foodItem: { select: { name: true } } },
+  });
+
+  res.status(201).json(entry);
 });
 
 router.post("/", async (req, res) => {
@@ -242,12 +294,23 @@ router.patch("/:id", async (req, res) => {
     return res.status(404).json({ error: "Log entry not found" });
   }
 
-  const { servingGrams, mealType } = req.body;
+  const { servingGrams, mealType, loggedAt } = req.body;
   const data = {};
 
   if (mealType !== undefined) data.mealType = mealType;
 
-  if (servingGrams !== undefined) {
+  if (loggedAt !== undefined) {
+    const loggedAtDate = new Date(loggedAt);
+    if (Number.isNaN(loggedAtDate.getTime())) {
+      return res.status(400).json({ error: "loggedAt must be a valid date" });
+    }
+    data.loggedAt = loggedAtDate;
+  }
+
+  // Serving edits don't apply to quick-add entries (servingGrams 0, macros
+  // stored absolute) — recomputing from the placeholder's zero macros would
+  // wipe them out.
+  if (servingGrams !== undefined && entry.servingGrams > 0) {
     const foodItem = await prisma.foodItem.findUnique({ where: { id: entry.foodItemId } });
     const scale = servingGrams / 100;
     data.servingGrams = servingGrams;
