@@ -248,6 +248,9 @@ class ApiService {
     String logEntryId, {
     double? servingGrams,
     String? mealType,
+    // ISO 8601 — moves the entry to another day/time (e.g. a session or meal
+    // logged on the wrong day).
+    String? loggedAt,
   }) async {
     final response = await http.patch(
       Uri.parse("$apiBaseUrl/logs/$logEntryId"),
@@ -255,11 +258,41 @@ class ApiService {
       body: jsonEncode({
         "servingGrams": ?servingGrams,
         "mealType": ?mealType,
+        "loggedAt": ?loggedAt,
       }),
     );
 
     if (response.statusCode != 200) {
       throw ApiException(_extractError(response, "Could not update this entry"));
+    }
+  }
+
+  /// Logs a one-off calorie/macro amount with no reusable food. Only [calories]
+  /// is required; [protein]/[carbs]/[fat] default to 0 server-side.
+  Future<void> quickAddLog(
+    String token, {
+    required double calories,
+    double? protein,
+    double? carbs,
+    double? fat,
+    required String mealType,
+    String? loggedAt,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/logs/quick-add"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({
+        "calories": calories,
+        "protein": ?protein,
+        "carbs": ?carbs,
+        "fat": ?fat,
+        "mealType": mealType,
+        "loggedAt": ?loggedAt,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(_extractError(response, "Could not quick add"));
     }
   }
 

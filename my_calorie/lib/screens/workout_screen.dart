@@ -76,8 +76,10 @@ class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin
     if (_isStarting) return;
     final otherController = TextEditingController();
     var selectedVenue = _venueOptions.first;
-    // Defaults to today; can be moved back to backfill a missed session.
+    // Default to now; both can be moved back to backfill a session done
+    // earlier that wasn't logged at the time.
     var selectedDate = DateTime.now();
+    var selectedTime = TimeOfDay.now();
 
     final venue = await showCupertinoDialog<String>(
       context: context,
@@ -140,6 +142,27 @@ class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin
                       }
                     },
                   ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.access_time,
+                      color: AppColors.textSecondary,
+                    ),
+                    title: Text(
+                      selectedTime.format(context),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    trailing: const Icon(Icons.edit, size: 18),
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: selectedTime,
+                      );
+                      if (picked != null) {
+                        setDialogState(() => selectedTime = picked);
+                      }
+                    },
+                  ),
                 ],
               ),
             ),
@@ -168,15 +191,14 @@ class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin
     setState(() => _isStarting = true);
     try {
       final token = await _authStorage.readToken();
-      // Keep the current time-of-day so a backfilled session lands sensibly
-      // on the week calendar rather than at midnight.
-      final now = DateTime.now();
+      // Combine the chosen day and time so the session lands where the user
+      // says it happened, on the right spot in the week calendar.
       final loggedAt = DateTime(
         selectedDate.year,
         selectedDate.month,
         selectedDate.day,
-        now.hour,
-        now.minute,
+        selectedTime.hour,
+        selectedTime.minute,
       );
       final log = await _apiService.createWorkoutLog(
         token!,
@@ -240,7 +262,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin
                       ),
                     ],
                     const SizedBox(height: 8),
-                    WorkoutWeekCalendar(logs: _recentLogs),
+                    WorkoutWeekCalendar(logs: _recentLogs, onSessionTap: _openSession),
                     const SizedBox(height: 24),
                     Text(
                       "Session history",

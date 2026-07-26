@@ -220,10 +220,155 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
     }
   }
 
+  /// A one-off calorie/macro entry — for when you know the total but not a
+  /// per-100g breakdown (restaurant meals, a shared dish). Only calories are
+  /// required. A date/time picker lets it be backdated to a missed day.
+  Future<void> _openQuickAdd() async {
+    final caloriesController = TextEditingController();
+    final proteinController = TextEditingController();
+    final carbsController = TextEditingController();
+    final fatController = TextEditingController();
+    var meal = _mealType;
+    var when = DateTime.now();
+
+    final saved = await showCupertinoDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => CupertinoAlertDialog(
+          title: const Text("Quick add"),
+          content: Material(
+            type: MaterialType.transparency,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppTextField(
+                    controller: caloriesController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    autofocus: true,
+                    placeholder: "Calories (kcal)",
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: proteinController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    placeholder: "Protein (g, optional)",
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: carbsController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    placeholder: "Carbs (g, optional)",
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: fatController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    placeholder: "Fat (g, optional)",
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: meal,
+                    decoration: const InputDecoration(labelText: "Meal"),
+                    items: mealTypeLabels.entries
+                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                        .toList(),
+                    onChanged: (value) => setDialogState(() => meal = value!),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.event_outlined, color: AppColors.textSecondary),
+                    title: Text(
+                      DateUtils.isSameDay(when, DateTime.now())
+                          ? "Today, ${TimeOfDay.fromDateTime(when).format(context)}"
+                          : "${when.year}-${when.month.toString().padLeft(2, '0')}-${when.day.toString().padLeft(2, '0')}, ${TimeOfDay.fromDateTime(when).format(context)}",
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    trailing: const Icon(Icons.edit_calendar, size: 18),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: when,
+                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date == null || !context.mounted) return;
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(when),
+                      );
+                      setDialogState(() => when = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                            (time ?? TimeOfDay.fromDateTime(when)).hour,
+                            (time ?? TimeOfDay.fromDateTime(when)).minute,
+                          ));
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text("Cancel"),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text("Add"),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved != true) return;
+
+    final calories = double.tryParse(caloriesController.text);
+    if (calories == null || calories <= 0) {
+      if (!mounted) return;
+      AppToast.show(context, "Enter a calorie amount");
+      return;
+    }
+
+    try {
+      final token = await _authStorage.readToken();
+      await _apiService.quickAddLog(
+        token!,
+        calories: calories,
+        protein: double.tryParse(proteinController.text),
+        carbs: double.tryParse(carbsController.text),
+        fat: double.tryParse(fatController.text),
+        mealType: meal,
+        loggedAt: when.toIso8601String(),
+      );
+      if (!mounted) return;
+      AppToast.show(context, "Quick added ${calories.round()} kcal to ${mealTypeLabels[meal]}");
+      widget.onChanged();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, e.toString());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Add food")),
+      appBar: AppBar(
+        title: const Text("Add food"),
+        actions: [
+          TextButton.icon(
+            onPressed: _openQuickAdd,
+            icon: const Icon(Icons.bolt, size: 18),
+            label: const Text("Quick add"),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),

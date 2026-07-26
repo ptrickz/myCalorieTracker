@@ -11,8 +11,10 @@ import "../theme.dart";
 /// chevron header instead, via the WeekView state key.
 class WorkoutWeekCalendar extends StatefulWidget {
   final List<Map<String, dynamic>> logs;
+  // Tapping a session block opens it (same as tapping it in the history list).
+  final ValueChanged<Map<String, dynamic>>? onSessionTap;
 
-  const WorkoutWeekCalendar({super.key, required this.logs});
+  const WorkoutWeekCalendar({super.key, required this.logs, this.onSessionTap});
 
   @override
   State<WorkoutWeekCalendar> createState() => _WorkoutWeekCalendarState();
@@ -113,6 +115,7 @@ class _WorkoutWeekCalendarState extends State<WorkoutWeekCalendar> {
       startTime: start,
       endTime: start.add(const Duration(hours: 1)),
       color: AppColors.accent,
+      event: log,
     );
   }
 
@@ -244,6 +247,10 @@ class _WorkoutWeekCalendarState extends State<WorkoutWeekCalendar> {
       liveTimeIndicatorSettings: const LiveTimeIndicatorSettings(
         color: AppColors.accent,
       ),
+      onEventTap: (events, date) {
+        final log = events.isEmpty ? null : events.first.event as Map<String, dynamic>?;
+        if (log != null) widget.onSessionTap?.call(log);
+      },
       eventTileBuilder: (date, events, boundary, start, end) => Container(
         margin: const EdgeInsets.symmetric(horizontal: 1),
         padding: const EdgeInsets.all(3),

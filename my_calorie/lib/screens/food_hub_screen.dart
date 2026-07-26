@@ -132,10 +132,14 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   }
 
   Future<void> _openEditLogEntryDialog(Map<String, dynamic> entry) async {
+    // Quick-add entries carry their macros absolutely (serving 0), so there's
+    // no serving to edit — only meal and when.
+    final isQuickAdd = (entry["servingGrams"] as num) == 0;
     final servingController = TextEditingController(
       text: (entry["servingGrams"] as num).round().toString(),
     );
     var mealType = entry["mealType"] as String;
+    var when = DateTime.parse(entry["loggedAt"] as String).toLocal();
 
     // Returns "save", "delete", or null (cancel/dismiss).
     final action = await showCupertinoDialog<String>(
@@ -151,12 +155,14 @@ class FoodHubScreenState extends State<FoodHubScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AppTextField(
-                    controller: servingController,
-                    keyboardType: TextInputType.number,
-                    placeholder: "Serving size (grams)",
-                  ),
-                  const SizedBox(height: 12),
+                  if (!isQuickAdd) ...[
+                    AppTextField(
+                      controller: servingController,
+                      keyboardType: TextInputType.number,
+                      placeholder: "Serving size (grams)",
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   DropdownButtonFormField<String>(
                     initialValue: mealType,
                     decoration: const InputDecoration(labelText: "Meal"),
@@ -164,6 +170,35 @@ class FoodHubScreenState extends State<FoodHubScreen> {
                         .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
                         .toList(),
                     onChanged: (value) => setDialogState(() => mealType = value!),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.event_outlined, color: AppColors.textSecondary),
+                    title: Text(
+                      "${_dateLabel(when)}, ${TimeOfDay.fromDateTime(when).format(context)}",
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    trailing: const Icon(Icons.edit_calendar, size: 18),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: when,
+                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date == null || !context.mounted) return;
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(when),
+                      );
+                      setDialogState(() => when = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                            (time ?? TimeOfDay.fromDateTime(when)).hour,
+                            (time ?? TimeOfDay.fromDateTime(when)).minute,
+                          ));
+                    },
                   ),
                 ],
               ),
@@ -196,17 +231,21 @@ class FoodHubScreenState extends State<FoodHubScreen> {
       if (action == "delete") {
         await _apiService.deleteLogEntry(token!, entry["id"] as String);
       } else {
-        final servingGrams = double.tryParse(servingController.text);
-        if (servingGrams == null || servingGrams <= 0) {
-          if (!mounted) return;
-          AppToast.show(context, "Enter a valid serving size");
-          return;
+        double? servingGrams;
+        if (!isQuickAdd) {
+          servingGrams = double.tryParse(servingController.text);
+          if (servingGrams == null || servingGrams <= 0) {
+            if (!mounted) return;
+            AppToast.show(context, "Enter a valid serving size");
+            return;
+          }
         }
         await _apiService.updateLogEntry(
           token!,
           entry["id"] as String,
           servingGrams: servingGrams,
           mealType: mealType,
+          loggedAt: when.toIso8601String(),
         );
       }
       await _loadDayLogs(_viewedDate);
@@ -536,11 +575,13 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   }
 
   Widget _buildEntryTile(Map<String, dynamic> entry) {
+    final grams = (entry["servingGrams"] as num).round();
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
       title: Text(entry["foodItem"]["name"] as String),
-      subtitle: Text("${(entry["servingGrams"] as num).round()}g"),
+      // Quick-add entries have no serving (grams 0) — the calorie total says it.
+      subtitle: grams > 0 ? Text("${grams}g") : null,
       trailing: Text("${(entry["calories"] as num).round()} kcal"),
       onTap: () => _openEditLogEntryDialog(entry),
     );
