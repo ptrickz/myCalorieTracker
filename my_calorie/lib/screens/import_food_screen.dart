@@ -194,7 +194,15 @@ class _ImportFoodScreenState extends State<ImportFoodScreen> {
       final food = await _apiService.importFood(token!, body);
 
       if (logNow) {
-        final dateLogged = _parsedImport?["dateLogged"] as String?;
+        // The import file may carry a naive timestamp (no zone suffix), which
+        // the server would read as its own local time. Parsing gives a local
+        // DateTime for those and a UTC one for anything zone-qualified, so
+        // toUtc() normalises both to a true instant.
+        final rawDateLogged = _parsedImport?["dateLogged"] as String?;
+        final parsedDateLogged =
+            rawDateLogged == null ? null : DateTime.tryParse(rawDateLogged);
+        final dateLogged =
+            parsedDateLogged?.toUtc().toIso8601String() ?? rawDateLogged;
         await _apiService.createLogEntry(
           token,
           foodItemId: food["id"] as String,

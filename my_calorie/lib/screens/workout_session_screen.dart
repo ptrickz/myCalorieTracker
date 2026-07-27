@@ -154,7 +154,10 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
         token!,
         widget.workoutLogId,
         venue: venue,
-        loggedAt: when.toIso8601String(),
+        // toUtc() first: a local DateTime serialises without a zone suffix,
+        // which the server would read as its own local time (UTC) and shift
+        // the session by our offset.
+        loggedAt: when.toUtc().toIso8601String(),
       );
       if (!mounted) return;
       setState(() {

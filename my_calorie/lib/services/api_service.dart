@@ -307,10 +307,15 @@ class ApiService {
     }
   }
 
+  /// Minutes east of UTC for this device (480 for UTC+8). Sent with every
+  /// day-scoped query so the server groups entries by the user's wall-clock
+  /// day instead of the UTC day, which for UTC+8 would run 8am-8am.
+  int get _tzOffsetMinutes => DateTime.now().timeZoneOffset.inMinutes;
+
   Future<Map<String, dynamic>> getLogs(String token, {String? date}) async {
     final uri = date == null
-        ? Uri.parse("$apiBaseUrl/logs")
-        : Uri.parse("$apiBaseUrl/logs?date=$date");
+        ? Uri.parse("$apiBaseUrl/logs?tzOffset=$_tzOffsetMinutes")
+        : Uri.parse("$apiBaseUrl/logs?date=$date&tzOffset=$_tzOffsetMinutes");
     final response = await http.get(uri, headers: _authHeaders(token));
 
     if (response.statusCode != 200) {
@@ -322,7 +327,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> getLogsRange(String token, {int days = 7}) async {
     final response = await http.get(
-      Uri.parse("$apiBaseUrl/logs/range?days=$days"),
+      Uri.parse("$apiBaseUrl/logs/range?days=$days&tzOffset=$_tzOffsetMinutes"),
       headers: _authHeaders(token),
     );
 
@@ -337,7 +342,7 @@ class ApiService {
   /// list for repeating a previous meal.
   Future<List<Map<String, dynamic>>> getRecentMeals(String token, String mealType) async {
     final response = await http.get(
-      Uri.parse("$apiBaseUrl/logs/recent-meals?mealType=$mealType"),
+      Uri.parse("$apiBaseUrl/logs/recent-meals?mealType=$mealType&tzOffset=$_tzOffsetMinutes"),
       headers: _authHeaders(token),
     );
 
@@ -354,7 +359,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse("$apiBaseUrl/logs/repeat-meal"),
       headers: _authHeaders(token, withJson: true),
-      body: jsonEncode({"date": date, "mealType": mealType}),
+      body: jsonEncode({"date": date, "mealType": mealType, "tzOffset": _tzOffsetMinutes}),
     );
 
     if (response.statusCode != 201) {
@@ -366,7 +371,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> getStreak(String token) async {
     final response = await http.get(
-      Uri.parse("$apiBaseUrl/logs/streak"),
+      Uri.parse("$apiBaseUrl/logs/streak?tzOffset=$_tzOffsetMinutes"),
       headers: _authHeaders(token),
     );
 

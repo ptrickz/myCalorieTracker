@@ -4,16 +4,46 @@ const { ensureQuickAddFood } = require("../quickAddFood");
 
 const router = express.Router();
 
-function dayBounds(dateString) {
+// Minutes east of UTC for the requesting client (480 for UTC+8), sent by the
+// app on every day-scoped request. Days are bucketed in this offset so a "day"
+// matches the user's wall clock; bucketing in plain UTC would make a UTC+8
+// user's day run 8am-8am and file late-night entries under the day before.
+// Falls back to 0 (UTC, the old behaviour) when absent or out of range.
+function offsetMinutes(req) {
+  const raw = Number(req.query.tzOffset ?? req.body?.tzOffset);
+  if (!Number.isFinite(raw) || Math.abs(raw) > 16 * 60) return 0;
+  return Math.trunc(raw);
+}
+
+function dayBounds(dateString, offset) {
+  // Local midnight expressed as an instant: 00:00 local is 00:00Z minus offset.
   const start = new Date(`${dateString}T00:00:00.000Z`);
+  start.setUTCMinutes(start.getUTCMinutes() - offset);
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + 1);
   return { start, end };
 }
 
+// The local calendar day an instant falls on, as YYYY-MM-DD.
+function dateKey(date, offset) {
+  return new Date(date.getTime() + offset * 60000).toISOString().slice(0, 10);
+}
+
+// Instant of the most recent local midnight.
+function startOfToday(offset) {
+  return dayBounds(dateKey(new Date(), offset), offset).start;
+}
+
+function addDays(date, n) {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + n);
+  return result;
+}
+
 router.get("/", async (req, res) => {
-  const date = req.query.date || new Date().toISOString().slice(0, 10);
-  const { start, end } = dayBounds(date);
+  const offset = offsetMinutes(req);
+  const date = req.query.date || dateKey(new Date(), offset);
+  const { start, end } = dayBounds(date, offset);
 
   const entries = await prisma.logEntry.findMany({
     where: { userId: req.userId, loggedAt: { gte: start, lt: end } },
@@ -34,33 +64,23 @@ router.get("/", async (req, res) => {
   res.json({ date, entries, totals });
 });
 
-function dateKey(date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function addDays(date, n) {
-  const result = new Date(date);
-  result.setUTCDate(result.getUTCDate() + n);
-  return result;
-}
-
 router.get("/streak", async (req, res) => {
+  const offset = offsetMinutes(req);
   const entries = await prisma.logEntry.findMany({
     where: { userId: req.userId },
     select: { loggedAt: true },
   });
 
-  const loggedDays = new Set(entries.map((entry) => dateKey(entry.loggedAt)));
+  const loggedDays = new Set(entries.map((entry) => dateKey(entry.loggedAt, offset)));
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const loggedToday = loggedDays.has(dateKey(today));
+  const today = startOfToday(offset);
+  const loggedToday = loggedDays.has(dateKey(today, offset));
 
   // Grace period: if today hasn't been logged yet, the streak isn't broken
   // until the day is actually over — start counting from yesterday instead.
   let cursor = loggedToday ? today : addDays(today, -1);
   let currentStreak = 0;
-  while (loggedDays.has(dateKey(cursor))) {
+  while (loggedDays.has(dateKey(cursor, offset))) {
     currentStreak++;
     cursor = addDays(cursor, -1);
   }
@@ -84,9 +104,9 @@ router.get("/streak", async (req, res) => {
 // without gap handling.
 router.get("/range", async (req, res) => {
   const days = Math.min(Math.max(Number(req.query.days) || 7, 1), 90);
+  const offset = offsetMinutes(req);
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = startOfToday(offset);
   const start = addDays(today, -(days - 1));
   const end = addDays(today, 1);
 
@@ -97,7 +117,7 @@ router.get("/range", async (req, res) => {
 
   const totalsByDay = new Map();
   for (const entry of entries) {
-    const key = dateKey(entry.loggedAt);
+    const key = dateKey(entry.loggedAt, offset);
     const totals = totalsByDay.get(key) || { calories: 0, protein: 0 };
     totals.calories += entry.calories;
     totals.protein += entry.protein;
@@ -106,7 +126,7 @@ router.get("/range", async (req, res) => {
 
   const result = [];
   for (let i = 0; i < days; i++) {
-    const key = dateKey(addDays(start, i));
+    const key = dateKey(addDays(start, i), offset);
     const totals = totalsByDay.get(key) || { calories: 0, protein: 0 };
     result.push({ date: key, calories: totals.calories, protein: totals.protein });
   }
@@ -122,9 +142,9 @@ router.get("/recent-meals", async (req, res) => {
     return res.status(400).json({ error: "mealType is required" });
   }
   const limit = Math.min(Math.max(Number(req.query.limit) || 5, 1), 20);
+  const offset = offsetMinutes(req);
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = startOfToday(offset);
 
   // Look back far enough to fill `limit` days for someone who logs sparsely.
   const entries = await prisma.logEntry.findMany({
@@ -139,7 +159,7 @@ router.get("/recent-meals", async (req, res) => {
 
   const byDay = new Map();
   for (const entry of entries) {
-    const key = dateKey(entry.loggedAt);
+    const key = dateKey(entry.loggedAt, offset);
     if (!byDay.has(key)) {
       byDay.set(key, { date: key, calories: 0, protein: 0, entries: [] });
     }
@@ -165,7 +185,7 @@ router.post("/repeat-meal", async (req, res) => {
     return res.status(400).json({ error: "date and mealType are required" });
   }
 
-  const { start, end } = dayBounds(date);
+  const { start, end } = dayBounds(date, offsetMinutes(req));
   const source = await prisma.logEntry.findMany({
     where: { userId: req.userId, mealType, loggedAt: { gte: start, lt: end } },
   });

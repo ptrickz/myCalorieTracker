@@ -203,7 +203,10 @@ class WorkoutScreenState extends State<WorkoutScreen> with AppBarVisibilityMixin
       final log = await _apiService.createWorkoutLog(
         token!,
         venue: venue,
-        loggedAt: loggedAt.toIso8601String(),
+        // toUtc() first: a local DateTime serialises without a zone suffix,
+        // which the server would read as its own local time (UTC) and shift
+        // the session by our offset.
+        loggedAt: loggedAt.toUtc().toIso8601String(),
       );
       if (!mounted) return;
       await Navigator.of(context).push(

@@ -245,7 +245,10 @@ class FoodHubScreenState extends State<FoodHubScreen> {
           entry["id"] as String,
           servingGrams: servingGrams,
           mealType: mealType,
-          loggedAt: when.toIso8601String(),
+          // toUtc() first: a local DateTime serialises without a zone suffix,
+          // which the server would read as its own local time (UTC) and shift
+          // the entry by our offset.
+          loggedAt: when.toUtc().toIso8601String(),
         );
       }
       await _loadDayLogs(_viewedDate);
