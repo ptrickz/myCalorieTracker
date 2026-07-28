@@ -622,6 +622,103 @@ class ApiService {
     }
   }
 
+  // --- Recipes ---
+
+  Future<List<Map<String, dynamic>>> getRecipes(String token, {String? search}) async {
+    final uri = search == null || search.isEmpty
+        ? Uri.parse("$apiBaseUrl/recipes")
+        : Uri.parse("$apiBaseUrl/recipes?search=${Uri.encodeQueryComponent(search)}");
+    final response = await http.get(uri, headers: _authHeaders(token));
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load recipes"));
+    }
+
+    return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> getRecipe(String token, String recipeId) async {
+    final response = await http.get(
+      Uri.parse("$apiBaseUrl/recipes/$recipeId"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiException(_extractError(response, "Could not load this recipe"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> createRecipe(
+    String token, {
+    required String name,
+    required int servings,
+    required List<String> ingredients,
+    required List<String> steps,
+    required double calories,
+    double? protein,
+    double? carbs,
+    double? fat,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/recipes"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({
+        "name": name,
+        "servings": servings,
+        "ingredients": ingredients,
+        "steps": steps,
+        "macrosPerServing": {
+          "calories": calories,
+          "protein": ?protein,
+          "carbs": ?carbs,
+          "fat": ?fat,
+        },
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(_extractError(response, "Could not save this recipe"));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<void> deleteRecipe(String token, String recipeId) async {
+    final response = await http.delete(
+      Uri.parse("$apiBaseUrl/recipes/$recipeId"),
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode != 204) {
+      throw ApiException(_extractError(response, "Could not delete this recipe"));
+    }
+  }
+
+  /// Logs [servings] of a recipe as a diary entry, using its per-serving macros.
+  Future<void> logRecipe(
+    String token,
+    String recipeId, {
+    required String mealType,
+    double servings = 1,
+    String? loggedAt,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$apiBaseUrl/recipes/$recipeId/log"),
+      headers: _authHeaders(token, withJson: true),
+      body: jsonEncode({
+        "mealType": mealType,
+        "servings": servings,
+        "loggedAt": ?loggedAt,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(_extractError(response, "Could not log this recipe"));
+    }
+  }
+
   Map<String, String> _authHeaders(String token, {bool withJson = false}) {
     return {
       "Authorization": "Bearer $token",

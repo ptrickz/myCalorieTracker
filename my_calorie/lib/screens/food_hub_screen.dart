@@ -13,8 +13,10 @@ import "../widgets/food_photo_picker.dart";
 import "../widgets/photo_viewer.dart";
 import "food_search_screen.dart";
 import "import_food_screen.dart";
+import "recipe_detail_screen.dart";
+import "recipe_log_sheet.dart";
 
-enum FoodHubTab { logFood, customFood }
+enum FoodHubTab { logFood, customFood, recipes }
 
 class FoodHubScreen extends StatefulWidget {
   /// Lets HomeShell know which sub-tab is active so it can swap the FAB
@@ -37,6 +39,12 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   bool _isLoadingCustom = true;
   String? _customErrorMessage;
   List<Map<String, dynamic>> _customFoods = const [];
+
+  // Recipes state — loaded lazily the first time the tab is opened.
+  bool _isLoadingRecipes = false;
+  bool _hasLoadedRecipes = false;
+  String? _recipesErrorMessage;
+  List<Map<String, dynamic>> _recipes = const [];
 
   // Day-log (diary) state — the Log Food tab's main content.
   bool _isLoadingDay = false;
@@ -77,7 +85,32 @@ class FoodHubScreenState extends State<FoodHubScreen> {
   void _switchTab(FoodHubTab tab) {
     setState(() => _tab = tab);
     widget.onSubTabChanged?.call(tab);
+    if (tab == FoodHubTab.recipes && !_hasLoadedRecipes) _loadRecipes();
   }
+
+  Future<void> _loadRecipes() async {
+    setState(() {
+      _isLoadingRecipes = true;
+      _recipesErrorMessage = null;
+    });
+    try {
+      final token = await _authStorage.readToken();
+      final recipes = await _apiService.getRecipes(token!);
+      if (!mounted) return;
+      setState(() {
+        _recipes = recipes;
+        _hasLoadedRecipes = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _recipesErrorMessage = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoadingRecipes = false);
+    }
+  }
+
+  /// Called by HomeShell once a recipe has been created from the FAB.
+  Future<void> refreshRecipes() => _loadRecipes();
 
   Future<void> _loadDayLogs(DateTime date) async {
     setState(() {
@@ -444,16 +477,23 @@ class FoodHubScreenState extends State<FoodHubScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Labels are short because a third segment leaves roughly a
+              // third of the width each on a phone.
               SegmentedButton<FoodHubTab>(
                 segments: const [
-                  ButtonSegment(value: FoodHubTab.logFood, label: Text("Log Food"), icon: Icon(Icons.book_outlined)),
-                  ButtonSegment(value: FoodHubTab.customFood, label: Text("Custom Food"), icon: Icon(Icons.restaurant_menu)),
+                  ButtonSegment(value: FoodHubTab.logFood, label: Text("Log"), icon: Icon(Icons.book_outlined)),
+                  ButtonSegment(value: FoodHubTab.customFood, label: Text("Custom"), icon: Icon(Icons.restaurant_menu)),
+                  ButtonSegment(value: FoodHubTab.recipes, label: Text("Recipes"), icon: Icon(Icons.menu_book_outlined)),
                 ],
                 selected: {_tab},
                 onSelectionChanged: (selection) => _switchTab(selection.first),
               ),
               const SizedBox(height: 16),
-              Expanded(child: _tab == FoodHubTab.logFood ? _buildDiary() : _buildCustomFoodBody()),
+              Expanded(child: switch (_tab) {
+                FoodHubTab.logFood => _buildDiary(),
+                FoodHubTab.customFood => _buildCustomFoodBody(),
+                FoodHubTab.recipes => _buildRecipesBody(),
+              }),
             ],
           ),
         ),
@@ -640,5 +680,71 @@ class FoodHubScreenState extends State<FoodHubScreen> {
         },
       ),
     );
+  }
+
+  // --- Recipes tab ---
+
+  Widget _buildRecipesBody() {
+    if (_isLoadingRecipes && _recipes.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_recipesErrorMessage != null) {
+      return Center(child: Text(_recipesErrorMessage!, style: const TextStyle(color: Colors.red)));
+    }
+    if (_recipes.isEmpty) {
+      return const Center(
+        child: EmptyState(
+          icon: Icons.menu_book_outlined,
+          title: "No recipes yet",
+          hint: "Tap + to save a dish you cook often.",
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadRecipes,
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        itemCount: _recipes.length,
+        separatorBuilder: (_, _) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final recipe = _recipes[index];
+          final macros = recipe["macrosPerServing"] as Map<String, dynamic>;
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const CircleAvatar(child: Icon(Icons.menu_book_outlined)),
+            title: Text(recipe["name"] as String),
+            subtitle: Text(
+              "${(macros["calories"] as num).round()} kcal · "
+              "${(macros["protein"] as num).round()}g protein per serving",
+            ),
+            trailing: TextButton(
+              onPressed: () => _logRecipe(recipe),
+              child: const Text("Log this"),
+            ),
+            onTap: () => _openRecipe(recipe),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _logRecipe(Map<String, dynamic> recipe) async {
+    final logged = await showRecipeLogSheet(context, recipe);
+    // The entry lands in the diary, so refresh it even though another tab
+    // is showing — the day totals are read back when Log Food reappears.
+    if (logged && mounted) await _loadDayLogs(_viewedDate);
+  }
+
+  Future<void> _openRecipe(Map<String, dynamic> recipe) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
+    );
+    if (!mounted) return;
+    // The detail screen pops true after logging a serving or deleting.
+    if (changed == true) {
+      await _loadRecipes();
+      if (mounted) await _loadDayLogs(_viewedDate);
+    }
   }
 }

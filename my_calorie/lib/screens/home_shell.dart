@@ -5,6 +5,7 @@ import "package:image_picker/image_picker.dart";
 import "../theme.dart";
 import "dashboard_screen.dart";
 import "create_food_screen.dart";
+import "create_recipe_screen.dart";
 import "food_hub_screen.dart";
 import "profile_screen.dart";
 import "scan_food_screen.dart";
@@ -102,6 +103,14 @@ class _HomeShellState extends State<HomeShell> {
     _foodHubKey.currentState?.refreshAfterCreate();
   }
 
+  Future<void> _openCreateRecipe() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CreateRecipeScreen()));
+    if (!mounted) return;
+    _foodHubKey.currentState?.refreshRecipes();
+  }
+
   Widget? _buildFab() {
     switch (_index) {
       case 0:
@@ -112,16 +121,22 @@ class _HomeShellState extends State<HomeShell> {
       case 1:
         return ValueListenableBuilder<FoodHubTab>(
           valueListenable: _foodHubTab,
-          builder: (context, tab, _) => tab == FoodHubTab.logFood
-              ? FloatingActionButton(
-                  onPressed: _openScan,
-                  child: const Icon(Icons.camera_alt),
-                )
-              : FloatingActionButton(
-                  onPressed: _openCreateFood,
-                  tooltip: "Add Custom Food",
-                  child: const Icon(Icons.add),
-                ),
+          builder: (context, tab, _) => switch (tab) {
+            FoodHubTab.logFood => FloatingActionButton(
+                onPressed: _openScan,
+                child: const Icon(Icons.camera_alt),
+              ),
+            FoodHubTab.customFood => FloatingActionButton(
+                onPressed: _openCreateFood,
+                tooltip: "Add Custom Food",
+                child: const Icon(Icons.add),
+              ),
+            FoodHubTab.recipes => FloatingActionButton(
+                onPressed: _openCreateRecipe,
+                tooltip: "Add a recipe",
+                child: const Icon(Icons.add),
+              ),
+          },
         );
       case 2:
         return FloatingActionButton(

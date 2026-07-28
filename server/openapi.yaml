@@ -31,7 +31,10 @@ components:
       enum: [BREAKFAST, LUNCH, DINNER, SNACK]
     FoodSource:
       type: string
-      enum: [OPEN_FOOD_FACTS, MYFCD, CUSTOM]
+      description: >
+        RECIPE marks the stand-in food behind a Recipe. Those carry the
+        recipe's name for the diary and are never returned by /foods.
+      enum: [OPEN_FOOD_FACTS, MYFCD, CUSTOM, RECIPE]
 
     Error:
       type: object
@@ -624,6 +627,94 @@ components:
           type: integer
           example: 30
 
+    MacrosPerServing:
+      type: object
+      description: Macros in a single serving. Stored flat, returned nested.
+      properties:
+        calories:
+          type: number
+          example: 320
+        protein:
+          type: number
+          example: 42
+        carbs:
+          type: number
+          example: 3
+        fat:
+          type: number
+          example: 14
+
+    Recipe:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: Baked chicken and vegetables
+        servings:
+          type: integer
+          example: 4
+        ingredients:
+          type: array
+          items:
+            type: string
+        steps:
+          type: array
+          items:
+            type: string
+        macrosPerServing:
+          $ref: "#/components/schemas/MacrosPerServing"
+        sourceName:
+          type: string
+          nullable: true
+          description: Attribution for recipes from a public catalogue; null when user-written.
+        createdByUserId:
+          type: string
+          nullable: true
+          description: Null for shared/seeded recipes, which cannot be edited or deleted.
+        createdAt:
+          type: string
+          format: date-time
+
+    RecipeCreate:
+      type: object
+      required: [name, macrosPerServing]
+      properties:
+        name:
+          type: string
+        servings:
+          type: integer
+          default: 1
+        ingredients:
+          type: array
+          items:
+            type: string
+        steps:
+          type: array
+          items:
+            type: string
+        macrosPerServing:
+          $ref: "#/components/schemas/MacrosPerServing"
+        sourceName:
+          type: string
+
+    RecipeLogRequest:
+      type: object
+      required: [mealType]
+      properties:
+        mealType:
+          type: string
+          enum: [BREAKFAST, LUNCH, DINNER, SNACK]
+        servings:
+          type: number
+          default: 1
+          description: Multiplier applied to macrosPerServing.
+        loggedAt:
+          type: string
+          format: date-time
+          description: Defaults to now. Send a zone-qualified instant, not a local wall clock.
+
 security:
   - bearerAuth: []
 
@@ -925,9 +1016,17 @@ paths:
       parameters:
         - name: date
           in: query
-          description: YYYY-MM-DD, defaults to today (UTC)
+          description: YYYY-MM-DD in the caller's local time, defaults to today
           schema:
             type: string
+        - name: tzOffset
+          in: query
+          description: >
+            Caller's offset from UTC in minutes (480 for UTC+8). Day boundaries
+            are computed in this offset so a day matches the user's wall clock.
+            Defaults to 0, which buckets by UTC day.
+          schema:
+            type: integer
       responses:
         "200":
           description: OK
@@ -1337,6 +1436,167 @@ paths:
           description: Deleted
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /recipes:
+    get:
+      summary: List saved recipes
+      parameters:
+        - name: search
+          in: query
+          description: Case-insensitive name match
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Recipes, by name
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Recipe"
+    post:
+      summary: Save a recipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipeCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+        "400":
+          description: Invalid name, servings or macros
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /recipes/{id}:
+    get:
+      summary: Get one recipe
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: Edit a recipe you created
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipeCreate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+        "403":
+          description: Shared or seeded recipe, not editable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a recipe you created
+      description: >
+        Servings already logged keep their own macro snapshot and stay in the
+        diary; the recipe's stand-in food is detached rather than removed.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Shared or seeded recipe, not deletable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /recipes/{id}/log:
+    post:
+      summary: Log servings of a recipe to the diary
+      description: >
+        Creates a LogEntry from macrosPerServing. Macros are copied, not
+        referenced, so later edits to the recipe don't rewrite history. The
+        entry has servingGrams 0, marking its macros as absolute.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipeLogRequest"
+      responses:
+        "201":
+          description: Logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogEntry"
+        "400":
+          description: Missing mealType or invalid servings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Recipe not found
           content:
             application/json:
               schema:

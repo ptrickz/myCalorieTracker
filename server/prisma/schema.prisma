@@ -35,6 +35,9 @@ enum FoodSource {
   OPEN_FOOD_FACTS
   MYFCD
   CUSTOM
+  // Backing food for a Recipe. Carries the recipe's name so a logged serving
+  // reads correctly in the diary; never offered in a food picker.
+  RECIPE
 }
 
 enum MealType {
@@ -69,6 +72,8 @@ model User {
   useCustomCalorieTargets Boolean @default(false)
   weekdayTargetCalories   Float?
   weekendTargetCalories   Float?
+
+  recipes Recipe[]
 
   // Rolling 24h rate limit for the vision-log endpoint (Claude vision calls
   // cost real money per request). Resets when the window expires.
@@ -106,7 +111,47 @@ model FoodItem {
   createdBy        User?      @relation(fields: [createdByUserId], references: [id])
   createdAt        DateTime   @default(now())
 
+  // Set only on RECIPE-source foods: the recipe this food stands in for.
+  // Unique, so a recipe has at most one backing food.
+  recipeId String? @unique
+  recipe   Recipe? @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
   logEntries LogEntry[]
+
+  @@index([name])
+}
+
+// A dish assembled from several foods, stored with its own macros rather than
+// composed from FoodItem rows: a recipe's finished yield weight is usually
+// unknown, so there is no per-100g basis to scale from. Logging a serving
+// therefore records the per-serving macros directly.
+model Recipe {
+  id       String @id @default(uuid())
+  name     String
+  servings Int    @default(1)
+
+  // Free text, one entry per line. Recipes arrive from varied sources with no
+  // consistent quantity structure worth parsing into columns.
+  ingredients String[]
+  steps       String[]
+
+  // Macros for a single serving. Named to match the API's `macrosPerServing`
+  // object, which these four are folded into on the way out.
+  caloriesPerServing Float
+  proteinPerServing  Float
+  carbsPerServing    Float
+  fatPerServing      Float
+
+  // Attribution for recipes brought in from a public catalogue; null for
+  // anything the user wrote themselves.
+  sourceName String?
+
+  createdByUserId String?
+  createdBy       User?   @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  // The stand-in food that logged servings attach to, created on first log.
+  foodItem FoodItem?
 
   @@index([name])
 }

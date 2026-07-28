@@ -8,12 +8,15 @@ router.get("/", async (req, res) => {
   const search = req.query.search?.trim();
 
   // The quick-add placeholder food backs one-off calorie entries; never offer
-  // it as something to log.
+  // it as something to log. Recipe stand-ins are excluded for the same reason,
+  // and because their per-100g values are zero — logging one by serving size
+  // would record nothing. Recipes are logged from the Recipes tab instead.
   const quickAddId = (await ensureQuickAddFood()).id;
+  const notAPlaceholder = { id: { not: quickAddId }, source: { not: "RECIPE" } };
 
   if (search) {
     const foods = await prisma.foodItem.findMany({
-      where: { name: { contains: search, mode: "insensitive" }, id: { not: quickAddId } },
+      where: { name: { contains: search, mode: "insensitive" }, ...notAPlaceholder },
       orderBy: { name: "asc" },
       take: 50,
     });
@@ -27,7 +30,11 @@ router.get("/", async (req, res) => {
   // most recent entry, so its serving and meal are the last ones used — which
   // the client needs to offer one-tap re-logging.
   const recentLogEntries = await prisma.logEntry.findMany({
-    where: { userId: req.userId, foodItemId: { not: quickAddId } },
+    where: {
+      userId: req.userId,
+      foodItemId: { not: quickAddId },
+      foodItem: { source: { not: "RECIPE" } },
+    },
     orderBy: { loggedAt: "desc" },
     select: { foodItemId: true, servingGrams: true, mealType: true },
     distinct: ["foodItemId"],
@@ -52,7 +59,7 @@ router.get("/", async (req, res) => {
   const remainingSlots = 20 - orderedRecentFoods.length;
   const otherFoods = remainingSlots > 0
     ? await prisma.foodItem.findMany({
-        where: { id: { notIn: [...recentFoodIds, quickAddId] } },
+        where: { id: { notIn: [...recentFoodIds, quickAddId] }, source: { not: "RECIPE" } },
         orderBy: { name: "asc" },
         take: remainingSlots,
       })

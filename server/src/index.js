@@ -14,6 +14,7 @@ const weightLogRoutes = require("./routes/weightLogs");
 const visionLogRoutes = require("./routes/visionLog");
 const exerciseRoutes = require("./routes/exercises");
 const workoutLogRoutes = require("./routes/workoutLogs");
+const recipeRoutes = require("./routes/recipes");
 const { requireAuth } = require("./middleware/auth");
 
 const app = express();
@@ -46,6 +47,7 @@ app.use("/weight-logs", requireAuth, weightLogRoutes);
 app.use("/vision-log", requireAuth, visionLogRoutes);
 app.use("/exercises", requireAuth, exerciseRoutes);
 app.use("/workout-logs", requireAuth, workoutLogRoutes);
+app.use("/recipes", requireAuth, recipeRoutes);
 
 const port = process.env.PORT || 3000;
 app.listen(port, "0.0.0.0", () => {

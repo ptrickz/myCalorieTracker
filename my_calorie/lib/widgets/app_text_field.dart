@@ -14,6 +14,10 @@ class AppTextField extends StatelessWidget {
   final Widget? prefix;
   final Widget? suffix;
 
+  /// Rows the field grows to. Pass a larger number (or null, for unbounded)
+  /// when the content is a list, like a recipe's ingredients.
+  final int? maxLines;
+
   const AppTextField({
     super.key,
     this.controller,
@@ -24,6 +28,7 @@ class AppTextField extends StatelessWidget {
     this.onChanged,
     this.prefix,
     this.suffix,
+    this.maxLines = 1,
   });
 
   @override
@@ -35,6 +40,7 @@ class AppTextField extends StatelessWidget {
       obscureText: obscureText,
       autofocus: autofocus,
       onChanged: onChanged,
+      maxLines: maxLines,
       prefix: prefix == null
           ? null
           : Padding(padding: const EdgeInsets.only(left: 16), child: prefix),
